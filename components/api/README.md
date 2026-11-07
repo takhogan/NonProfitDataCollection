@@ -25,6 +25,23 @@ Do not perform long-running intake or network sends inside the webhook request.
 
 First deliverable: authorized assisted-intake creation and household/case retrieval.
 
+## Current implementation
+
+A first working API exists at [`components/whatsapp/api`](../whatsapp/api/README.md). It
+covers:
+
+- assisted intake
+- household and case retrieval
+- cross-organization isolation tests
+- `Idempotency-Key` replay
+- the WhatsApp verification handshake and signed inbound-event persistence
+
+It uses **Python 3.11, FastAPI, SQLAlchemy/Alembic, SQLite locally, and JWT login**.
+That differs from the stack proposed below (TypeScript/Fastify, PostgreSQL, Google
+OAuth with server-side sessions). Until that choice is reconciled, this file and
+[REQUIREMENTS.md](REQUIREMENTS.md) describe the intended behavior. The implementation
+README describes how to run what exists today.
+
 ## Proposed tech stack and deployment
 
 - TypeScript + Node.js LTS + Fastify, with JSON Schema request/response definitions.

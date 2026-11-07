@@ -15,6 +15,14 @@ build/
 coverage/
 *.tsbuildinfo
 
+# Python virtualenvs, caches, and build artifacts.
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+*.egg-info/
+
 # Local runtime data and logs.
 *.log
 *.sqlite
