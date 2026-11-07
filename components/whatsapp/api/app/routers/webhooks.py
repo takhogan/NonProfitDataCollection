@@ -2,7 +2,10 @@
 
 GET  /webhooks/whatsapp  -> Meta verification handshake (echo hub.challenge).
 POST /webhooks/whatsapp  -> verify X-Hub-Signature-256, persist the raw event to
-                           inbound_event, return 200 immediately.
+                           inbound_event, return 200 immediately. A missing or
+                           invalid signature gets 401 and nothing is stored; if
+                           APP_SECRET is not configured, POSTs get 503 rather
+                           than accepting unverifiable data.
 
 No LLM calls and no outbound sends happen here; a separate worker polls
 unprocessed inbound_event rows. Both WhatsApp message and delivery-status
@@ -50,7 +53,6 @@ def verify_subscription(
 
 def _verify_signature(app_secret: str, raw_body: bytes, signature_header: str | None) -> bool:
     if not app_secret:
-        # Dev mode with no secret configured: accept but flag as unverified.
         return False
     if not signature_header or not signature_header.startswith("sha256="):
         return False
@@ -90,7 +92,14 @@ async def receive_event(
 ) -> Response:
     raw = await request.body()
     settings = get_settings()
-    signature_ok = _verify_signature(settings.app_secret, raw, x_hub_signature_256)
+    if not settings.app_secret:
+        # Misconfigured deployment: never accept unverifiable provider data.
+        # A 5xx makes Meta retry later instead of the event being lost.
+        return Response(status_code=503)
+    if not _verify_signature(settings.app_secret, raw, x_hub_signature_256):
+        # Unauthenticated caller: do not persist attacker-controlled payloads.
+        return Response(status_code=401)
+    signature_ok = True
 
     try:
         payload = json.loads(raw or b"{}")
