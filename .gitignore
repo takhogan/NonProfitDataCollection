@@ -1,0 +1,30 @@
+# Local secrets; documented templates may be committed.
+.env
+.env.*
+!.env.example
+!.env.*.example
+*.pem
+*.key
+
+# JavaScript dependencies and build artifacts.
+node_modules/
+dist/
+build/
+.next/
+.turbo/
+coverage/
+*.tsbuildinfo
+
+# Local runtime data and logs.
+*.log
+*.sqlite
+*.sqlite3
+*.db
+*.dump
+*.sql.gz
+uploads/
+local-data/
+
+# OS and editor files.
+.DS_Store
+.idea/
