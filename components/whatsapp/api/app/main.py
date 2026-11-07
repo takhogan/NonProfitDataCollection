@@ -8,10 +8,14 @@ from __future__ import annotations
 
 from fastapi import FastAPI
 
+from app.config import get_settings
 from app.errors import register_error_handlers
 
 
 def create_app() -> FastAPI:
+    # Fail fast on missing/insecure production config before serving traffic.
+    get_settings().validate_runtime()
+
     app = FastAPI(
         title="Aid Coordination API",
         version="0.1.0",

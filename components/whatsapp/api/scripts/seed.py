@@ -9,6 +9,7 @@ Idempotent-ish: it skips seeding if the organizations already exist.
 """
 from __future__ import annotations
 
+from app.config import get_settings
 from app.context import RequestContext
 from app.db import SessionLocal
 from app.contracts.household import AssistedIntakeRequest, NeedIn, ObservationIn, PersonIn
@@ -16,11 +17,26 @@ from app.domain.intake import create_assisted_intake
 from app.models.org import Organization, OrganizationMembership, User
 from app.security import hash_password
 
+
+def _demo_password() -> str:
+    """Demo password comes from SEED_DEMO_PASSWORD; never hardcoded.
+
+    Required in production (validate_runtime enforces it); local dev falls back
+    to a clearly non-secret value so `python -m scripts.seed` just works.
+    """
+    settings = get_settings()
+    if settings.seed_demo_password:
+        return settings.seed_demo_password
+    if settings.is_production:
+        raise RuntimeError("SEED_DEMO_PASSWORD must be set in production")
+    return "local-demo-pass"
+
+
+# (email, display_name, org_key, role) — password is injected from env.
 USERS = [
-    # (email, display_name, password, org_key, role)
-    ("ana@aguazul.org", "Ana Rivas", "demo-pass", "aguazul", "coordinator"),
-    ("luis@aguazul.org", "Luis Peña", "demo-pass", "aguazul", "caseworker"),
-    ("maria@luzviva.org", "María Gómez", "demo-pass", "luzviva", "coordinator"),
+    ("ana@aguazul.org", "Ana Rivas", "aguazul", "coordinator"),
+    ("luis@aguazul.org", "Luis Peña", "aguazul", "caseworker"),
+    ("maria@luzviva.org", "María Gómez", "luzviva", "coordinator"),
 ]
 
 ORGS = {
@@ -57,9 +73,13 @@ def seed() -> None:
             orgs[key] = org
         db.flush()
 
+        demo_password = _demo_password()
         memberships: dict[str, OrganizationMembership] = {}
-        for email, name, pw, org_key, role in USERS:
-            user = User(auth_subject=email, display_name=name, password_hash=hash_password(pw))
+        for email, name, org_key, role in USERS:
+            user = User(
+                auth_subject=email, display_name=name,
+                password_hash=hash_password(demo_password),
+            )
             db.add(user)
             db.flush()
             mem = OrganizationMembership(
@@ -108,8 +128,8 @@ def seed() -> None:
         print("Seeded organizations:")
         for key, org in orgs.items():
             print(f"  - {org.name} ({org.id})")
-        print("\nDemo logins (password: demo-pass):")
-        for email, name, _, org_key, role in USERS:
+        print("\nDemo logins (password from SEED_DEMO_PASSWORD):")
+        for email, name, org_key, role in USERS:
             print(f"  - {email}  [{ORGS[org_key]} / {role}]")
     finally:
         db.close()

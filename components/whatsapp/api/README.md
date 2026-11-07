@@ -30,6 +30,10 @@ Python 3.11 · FastAPI · Pydantic v2 · SQLAlchemy 2.0 + Alembic. SQLite locall
 (swap `DATABASE_URL` for PostgreSQL in production). OpenAPI is exposed so the
 frontend can generate TypeScript types.
 
+**Deployment:** see [DEPLOY.md](DEPLOY.md) for Cloud Run (API + worker) with
+Cloud SQL and Secret Manager. In production (`APP_ENV=production`) startup fails
+fast if any secret is missing or insecure, and SQLite is rejected.
+
 ### Quick start
 
 ```bash
@@ -57,7 +61,8 @@ npx openapi-typescript http://127.0.0.1:8000/openapi.json -o web/src/api-types.t
 
 ### Demo logins
 
-Password for all: `demo-pass`
+Password for all: the value of `SEED_DEMO_PASSWORD` (defaults to
+`local-demo-pass` locally if unset).
 
 | Email | Organization | Role |
 |-------|--------------|------|
@@ -71,7 +76,7 @@ Password for all: `demo-pass`
 # 1. Log in -> JWT
 TOKEN=$(curl -s localhost:8000/auth/login \
   -H 'content-type: application/json' \
-  -d '{"email":"ana@aguazul.org","password":"demo-pass"}' | python3 -c 'import sys,json;print(json.load(sys.stdin)["access_token"])')
+  -d '{"email":"ana@aguazul.org","password":"local-demo-pass"}' | python3 -c 'import sys,json;print(json.load(sys.stdin)["access_token"])')
 
 # 2. Who am I / my orgs
 curl -s localhost:8000/me -H "authorization: Bearer $TOKEN"
