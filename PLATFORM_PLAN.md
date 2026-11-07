@@ -1,16 +1,49 @@
 # Venezuela power and water response platform
 
-Planning draft · 7 November 2026
+Planning draft · 7 November 2026 · scope revised after pilot decisions the same day
+
+> **Pilot scope.** The operating NGO is [Ciudadanía Sin Límites](https://ciudadaniasinlimites.org/about/)
+> (CSL), in metropolitan Caracas. Residents see the service as **Metron Reporter**.
+> CSL collects reports, triages needs, communicates with residents, and **shares needs
+> with partner organizations**. Partners deliver water and run charging, using their own
+> tools. Sections of this plan about NGO-run fulfillment (stock, allocations, delivery
+> runs, charging slots) are kept as **deferred design** for a possible later phase.
+> Feature requirements, roles, the threat model, and decisions are in
+> [components/REQUIREMENTS.md](components/REQUIREMENTS.md). Where they differ from this
+> plan, the requirements win.
 
 ## Product goal and initial scope
 
-Help one NGO identify households affected by power and water interruptions, understand what they need, assign a response, and confirm whether assistance reached them. Design organization ownership into the database now; enable controlled collaboration between organizations later.
+Help one NGO hear from households affected by power and water interruptions, understand
+what they need, triage those needs, and get them to partner organizations that can
+help, while keeping residents informed and learning from them whether help arrived.
+Design organization ownership into the database now. Enable controlled collaboration
+between organizations later.
 
-The product is a needs intake and response system with an outage intelligence layer. It should not treat neighborhood consensus as proof that a household deserves or does not deserve assistance.
+The product is a needs intake, communication, and information-sharing system with an
+outage intelligence layer. It should not treat neighborhood consensus as proof that a
+household deserves or does not deserve assistance.
 
-Confirmed assistance scope: **water deliveries and charging access**. A household can request either or both within the same case; each need has its own allocation and completion status. For planning, assume charging is offered at staffed sites; fixed versus mobile sites, supported devices, and appointment versus walk-in operation remain to be confirmed.
+Need scope:
 
-Pilot assumptions to validate: one partner NGO, a small set of communities selected with that NGO, Spanish-first intake, volunteers supporting people with limited connectivity, and human responsibility for assistance decisions. No field research or local service-provider integration has been performed for this draft.
+- **Drinking water** and **water for other household use**, recorded as separate needs.
+- **Charging access** (devices, and whether the person can reach a site).
+
+A household can report any combination in one case. Each need has its own status,
+sharing state, and outcome facts. CSL does not deliver, so a need is resolved by a
+recorded CSL disposition. That disposition is informed by resident follow-ups and,
+when available, partner-reported outcomes.
+
+Pilot assumptions to validate:
+
+- a small set of Caracas communities selected with CSL
+- Spanish-first intake
+- volunteers supporting people with limited connectivity
+- a vetted set of partner organizations
+- human responsibility for triage and sharing decisions
+
+No field research or local service-provider integration has been performed for this
+draft.
 
 ## End-to-end workflow
 
@@ -21,12 +54,23 @@ Pilot assumptions to validate: one partner NGO, a small set of communities selec
 5. **Confirm the summary.** Show a short Spanish summary before submission. Free text and voice can supplement structured options; automated extraction is a draft until confirmed by the reporter or reviewed by staff.
 6. **Create or update a case.** Link the assessment to a household and response case when assistance is requested. Accept area-only observations without forcing creation of a beneficiary profile. Repeat submissions update the timeline rather than silently replacing older observations.
 7. **Triage and review.** Separate urgent needs, routine needs, missing information, potential duplicates, and comparable conflicting observations. High urgency and low evidence confidence may coexist.
-8. **Assign and deliver.** Staff assign a case owner, select available assistance, reserve quantities, record dispatch and delivery, and capture recipient feedback separately from a distributor's delivery claim.
-9. **Follow up.** Ask whether service was restored and whether needs remain. Reopen cases when needed. A new outage is a new episode; historical reports remain linked to their original observation times.
+8. **Share with partners.** Staff assign a case owner and mark triaged needs shareable.
+   - Every partner sees aggregate demand on the map and dashboard.
+   - Vetted partners also see and export a contactable list. The list contains only
+     households that consented to sharing, in that partner's areas and categories.
+   - Every view and export is logged.
+   - The resident is told their request is now visible to organizations that may help.
+9. **Follow up.** Ask the resident whether anyone helped, whether needs remain, and
+   whether service was restored.
+   - Partners may report outcomes too. These are kept separate from the resident's
+     answer and never resolve a need on their own.
+   - Reopen needs when needed.
+   - A new outage is a new episode. Historical reports remain linked to their original
+     observation times.
 
 ## Suggested first bot conversation
 
-- “Somos [ONG]. Recogemos información sobre cortes de luz y agua para coordinar apoyo. Esto no garantiza ayuda. Puedes pedir hablar con una persona.”
+- “Hola, somos Metron Reporter. Recogemos información sobre cortes de luz y agua y la compartimos con organizaciones que pueden ayudar. No entregamos ayuda directamente y reportar no garantiza ayuda. Los datos los gestiona Ciudadanía Sin Límites. Puedes pedir hablar con una persona.”
 - “¿Reportas por tu hogar, por otra persona o por tu comunidad?”
 - “¿En qué comunidad estás? Puedes escribir una referencia; compartir ubicación es opcional.”
 - “¿Cómo está la electricidad ahora? Disponible / Sin servicio / Intermitente / No sé.”
@@ -34,12 +78,27 @@ Pilot assumptions to validate: one partner NGO, a small set of communities selec
 - For each affected service: “¿Desde cuándo? ¿Cuándo lo comprobaste por última vez?” Accept approximate times.
 - “¿Tu hogar tiene agua para beber? Sí / Poca / No / No sé.” If useful, ask for approximate days remaining, explicitly permitting unknown.
 - “¿Cuántas personas necesitan apoyo? ¿Qué apoyo necesitan?”
-- “¿Hay una necesidad urgente que debamos revisar con una persona?” Keep detailed health information out of the default flow; collect only operational accommodation needs through an appropriate reviewed process.
-- Confirm the answers, provide a reference, explain staffed response expectations, and offer correction or human assistance.
+- “¿Hay una necesidad urgente que debamos revisar con una persona?”
+  - A "yes" sends the agreed emergency and partner contacts immediately and queues
+    staff review.
+  - Keep detailed health information out of the default flow. Collect only
+    operational accommodation needs, through an appropriate reviewed process.
+- “¿Aceptas que compartamos tu contacto y tu necesidad con organizaciones que pueden ayudar en tu zona? Sí / No.”
+  - This is asked separately from messaging permission.
+  - A "no" still records the need. It just keeps the need off partner lists.
+- Confirm the answers and provide a reference.
+  - Explain that, with consent, the request may be shared with organizations, and that
+    CSL does not control whether or when they respond.
+  - Mention `ESTADO` for updates, and offer correction or human assistance.
 
 Keep the initial path short with branching questions. Do not require photos, identity documents, GPS, a complete roster of household members, or a diagnosis to submit. The bot is not an emergency dispatch service; local escalation instructions must be agreed with the operating NGO before launch.
 
 ## Service-specific intake and fulfillment
+
+In the pilot, only the **intake** parts of this section apply: the questions, and the
+need details passed to partners. The **coordinator workflow**, stock, run, and
+site-capacity paragraphs describe NGO-run fulfillment. That is deferred
+(`DOM-090` in the requirements) because partners fulfill with their own tools.
 
 ### Water deliveries
 
@@ -63,21 +122,54 @@ Site capacity is time-dependent. Operators declare safe simultaneous device capa
 
 ### Operational priorities and dashboard
 
-Use two visible work queues: **water delivery** and **charging access**, linked by household. For water show unallocated requested liters, unknown-quantity requests, reserved liters, delivery runs, actual liters delivered, partial deliveries, and recipient confirmation. For charging show operational sites, freshness of site checks, capacity by time slot, bookings, waiting households, completed device sessions, and interrupted sessions. Never add liters and charging slots into one quantity total.
+Pilot work queues: new, urgent, unassigned, human handoff, follow-up due, stale, and
+not shareable (no consent). Each is filterable by need category and area.
 
-Proposed prioritization inputs are remaining supply, time waiting, stated urgency, and access barriers, with a recorded human decision. The NGO defines allocation quantities and escalation thresholds; this draft does not prescribe water consumption standards. An outage-duration estimate or neighborhood consensus alone must not determine priority.
+The coordinator overview shows:
+
+- open needs by category and parish
+- needs triaged but not yet shared
+- needs shared with no outcome after a set period
+- follow-up replies
+- partner export activity
+
+The partner-facing demand map shows open needs per area and category, with small cells
+suppressed. Never add liters, people, and devices into one quantity total.
+
+Proposed urgency inputs are remaining drinking water, time waiting, stated urgency, and
+access barriers, with a recorded human decision. Partners decide quantities; this draft
+does not prescribe water consumption standards. An outage-duration estimate or
+neighborhood consensus alone must not determine priority.
+
+*Deferred fulfillment dashboard:* if CSL later runs fulfillment, add the following:
+
+- Water: requested, reserved, and delivered liters; runs; partial deliveries.
+- Charging: site status and capacity by slot, bookings, and sessions.
 
 ## Central platform
 
-**Operations dashboard:** recent outage observations by area and service, freshness and coverage, urgent unassigned cases, outstanding need quantities, assignments, and delivery backlog. An area with no reports is unknown, not unaffected. Maps show aggregate areas by default; precise household locations are restricted.
+**Operations dashboard:** recent outage observations by area and service, freshness and coverage, urgent unassigned cases, open needs by category, assignments, and sharing backlog. An area with no reports is unknown, not unaffected. Maps show aggregate areas by default; precise household locations are restricted.
 
 **Household/person CRM:** contact relationships, current location and location history, household membership if needed, assessments, open needs, contact permissions, assigned worker, assistance history, corrections, and complaints. A telephone is a contact endpoint, not a person identifier: phones may be shared or replaced.
 
 **Review queue:** comparable conflicts, uncertain locations, stale observations, possible duplicates, extraction errors, and follow-up tasks. Reviewers see the evidence and reason for each flag.
 
-**Aid coordination:** available resources, case ownership, allocations, partial deliveries, recipient confirmation, unsuccessful delivery reasons, and remaining needs. A dashboard alone does not prevent duplicate dispatch; allocations and assignments must be tracked transactionally.
+**Partner sharing:** partner organizations, vetting, and scopes; the aggregate demand
+map; the contactable list and watermarked exports for vetted partners; sharing history
+per household; and optional partner-reported outcomes. Sharing is consent-bound and
+fully logged. Partners are the largest planned outflow of personal data, so they
+receive the minimum fields.
 
-**Analytics:** invitation-to-intake completion when attribution is available, reporting coverage, age of observations, median and 90th percentile time to first human action, requested versus delivered quantities by unit, unresolved needs, and recipient-confirmed delivery rate. Always separate reports, deduplicated households, estimated people, and deliveries. These submissions are not a representative estimate of the population without a sampling design.
+**Analytics:**
+
+- invitation-to-intake completion, when attribution is available
+- reporting coverage and age of observations
+- median and 90th percentile time to first human action
+- share of needs shared within 48 hours
+- unresolved needs
+- resident-reported and partner-reported outcome rates, kept separate
+
+Always separate reports, deduplicated households, estimated people, and outcomes. These submissions are not a representative estimate of the population without a sampling design.
 
 ## Cross-checking without mistaking disagreement for fraud
 
@@ -182,7 +274,7 @@ Suggested `service_type`: electricity, piped_water. Suggested observation `statu
 
 One assessment can contain several observations and several needs. `source_channel` supports WhatsApp, phone, and volunteer-assisted intake from the start. An observation's time interval expresses uncertainty about when it was observed; it is distinct from the estimated outage onset.
 
-### Cases and delivery
+### Cases, needs, and partner sharing (pilot)
 
 ```text
 case_record(id, organization_id, household_id, campaign_id?, status,
@@ -190,7 +282,44 @@ case_record(id, organization_id, household_id, campaign_id?, status,
 case_assessment(id, organization_id, case_id, assessment_id)
 need(id, organization_id, case_id, assessment_id, category, requested_quantity?,
      unit?, period_start?, period_end?, urgency, urgency_reasons,
-     status, last_confirmed_at, supersedes_need_id?)
+     status, shareable, shareable_reason?, last_confirmed_at,
+     resolution_reason?, supersedes_need_id?)
+partner_organization(id, organization_id, name, vetting_status,
+                     responsible_contact_reference, statement_version,
+                     may_disclose_name, vetted_by_membership_id?, vetted_at?)
+partner_scope(id, organization_id, partner_organization_id, area_id, category)
+share_event(id, organization_id, partner_organization_id, actor_membership_id,
+            need_id, channel, fields_shared, export_record_id?, occurred_at)
+export_record(id, organization_id, requested_by_membership_id,
+              partner_organization_id?, scope_json, row_count, watermark_id,
+              object_reference, expires_at, created_at)
+need_outcome(id, organization_id, need_id, source, outcome, quantity?, unit?,
+             reported_by_membership_id?, partner_organization_id?,
+             conversation_id?, reported_at)
+case_event(id, organization_id, case_id, event_type, actor_membership_id?,
+           occurred_at, details_json)
+```
+
+`need.category` is `water_drinking`, `water_other`, or `charging`.
+
+- A partner user is an ordinary membership in the operating organization with the
+  `partner` role and a `partner_organization_id`. This is not a separate tenant.
+- `need_outcome.source` is `partner` or `resident`. Outcomes are facts. A need is
+  resolved only by a CSL disposition.
+- The partner contactable list is derived, not stored. It contains needs whose
+  households have active sharing consent and are safe to contact, that are triaged,
+  open, and shareable, and that are within a vetted partner's scope.
+- Every list view or export writes `share_event` rows in the same transaction.
+
+Needs may remain after service restoration. A case can include multiple outage episodes
+through its assessments.
+
+### Deferred: NGO-run fulfillment
+
+The records below apply only if CSL or a partner later manages fulfillment inside this
+platform. They are kept here as a design reference.
+
+```text
 assistance_decision(id, organization_id, need_id, decision, rationale,
                     policy_version, decided_by_membership_id, decided_at,
                     supersedes_decision_id?)
@@ -201,15 +330,18 @@ allocation(id, organization_id, need_id, resource_offer_id, quantity, unit,
 delivery(id, organization_id, allocation_id, quantity, unit, status,
          dispatched_at?, delivered_at?, recorded_by_membership_id,
          recipient_confirmed_at?, feedback?, failure_reason?)
-case_event(id, organization_id, case_id, event_type, actor_membership_id?,
-           occurred_at, details_json)
 ```
 
-Needs may remain after service restoration. Water needs need units and a time period: “20 liters today” differs from “20 liters daily.” A case can include multiple outage episodes through its assessments. Model partial deliveries explicitly. Do not mark a need fulfilled merely because resources were allocated or dispatched. Count distributor-reported and recipient-confirmed deliveries separately.
+Water needs need units and a time period: “20 liters today” differs from “20 liters daily.” A case can include multiple outage episodes through its assessments. Model partial deliveries explicitly. Do not mark a need fulfilled merely because resources were allocated or dispatched. Count distributor-reported and recipient-confirmed deliveries separately.
 
 ### Water and charging extensions
 
-Keep common case/need/allocation records, with typed service details. In this pilot, `delivery` records physical water deliveries; charging fulfillment uses `charging_session`. Every extension inherits organization ownership and enforced organization-scoped foreign keys.
+`water_need_detail`, `charging_need_detail`, and `charging_device_request` are **pilot**
+records. They hold the intake details passed to partners. The remaining extensions
+(supply, runs, stops, sites, slots, bookings, sessions) are **deferred** with the
+fulfillment records above.
+
+Keep common case/need/allocation records, with typed service details. If fulfillment is reinstated, `delivery` records physical water deliveries; charging fulfillment uses `charging_session`. Every extension inherits organization ownership and enforced organization-scoped foreign keys.
 
 ```text
 water_need_detail(need_id PK/FK, intended_use, people_to_serve?,
@@ -243,11 +375,11 @@ charging_session(id, organization_id, charging_booking_id,
                  recipient_confirmed_at?, interruption_reason?)
 ```
 
-Use `need.category = water_delivery` with quantity in liters, or `charging_access` with quantity in device sessions. A charging slot's resource offer uses device sessions and exactly the same availability interval. A device session means one device using one configured slot, not a guaranteed full battery. A booking references its slot through its allocation's resource offer; reject references to any other offer type. A water delivery references its reserved supply through its allocation. Enforce matching need categories, resource types, units, and allocation ownership across these references.
+In this deferred design, water needs (`water_drinking`/`water_other`) are fulfilled in liters and `charging` in device sessions. A charging slot's resource offer uses device sessions and exactly the same availability interval. A device session means one device using one configured slot, not a guaranteed full battery. A booking references its slot through its allocation's resource offer; reject references to any other offer type. A water delivery references its reserved supply through its allocation. Enforce matching need categories, resource types, units, and allocation ownership across these references.
 
 Require one service detail record matching each need category. Sum charging device requests to derive requested sessions for the relevant period; do not count the same device request twice when rebooking. A session interrupted before useful service leaves follow-up outstanding; staff record whether further charging is needed. A household case closes only when all needs have an explicit resolved, withdrawn, or otherwise reviewed disposition.
 
-For the pilot, use non-overlapping slots per charging site. Atomically check active reservations against slot device capacity, and validate capacity against site limits. A walk-in receives a booking before using remaining capacity. Cancellation releases only unused reserved capacity; completed usage remains consumed for that slot. Longer sessions require an explicit extension into available capacity. Prevent open sessions from silently overlapping subsequent bookings beyond the site's simultaneous limit.
+If charging fulfillment is reinstated, use non-overlapping slots per charging site. Atomically check active reservations against slot device capacity, and validate capacity against site limits. A walk-in receives a booking before using remaining capacity. Cancellation releases only unused reserved capacity; completed usage remains consumed for that slot. Longer sessions require an explicit extension into available capacity. Prevent open sessions from silently overlapping subsequent bookings beyond the site's simultaneous limit.
 
 Water allocations cannot exceed released supply; delivery-run planned loads cannot exceed run capacity. Actual delivery quantities are positive and cannot exceed remaining allocation without a recorded adjustment. Apply unique fulfillment operation IDs so an offline retry cannot double-count water delivered or charging sessions. Record staff-reported completion separately from recipient confirmation in both workflows.
 
@@ -291,7 +423,10 @@ Start with aggregate coverage sharing and explicit referrals. Keep original reco
 - Enforce unique inbound provider message IDs per channel account. Use separate deduplicated delivery-status events; delivery updates can arrive more than once or out of order.
 - Retain assessment and observation revisions. Never overwrite the historical fact that an earlier report was made; controlled deletion/anonymization for retention still applies.
 - Validate nonnegative quantities, matching units, valid time ranges, recognized statuses, and valid relationship scope. Prevent self-links and duplicate observation-pair relations.
-- Lock or transact resource reservations so simultaneous coordinators cannot allocate the same remaining stock. Handle cancelled allocations and partially delivered quantities explicitly.
+- Read partner exports from a consistent snapshot, and record their share events in the
+  same transaction.
+- If fulfillment is reinstated, lock or transact resource reservations so simultaneous
+  coordinators cannot allocate the same remaining stock.
 - Index organization + case status + assignee, organization + observation time + service, household + open case, provider identifiers, and spatial fields. Derive dashboard views rather than storing a second untraceable set of facts.
 - Store media separately with restricted access and expiry. Encrypt contact details and sensitive location data; manage keys separately. Restrict and audit exports as well as on-screen access.
 
@@ -302,11 +437,11 @@ Volunteer invitation → Resident sends WhatsApp message
     → authenticated webhook → durable inbox/queue
     → resumable intake workflow → normalized assessments and observations
     → case/need creation + comparison rules + human review
-    → assignments, allocations, deliveries, follow-up
+    → triage, consent-bound partner sharing, resident follow-up
     → aggregate operational dashboard and analytics
 ```
 
-Use a modular application with background workers initially. Acknowledge webhooks after durable acceptance; retry processing safely, quarantine failures, and allow operators to replay failed jobs. Store outbound messages in a transactional outbox to avoid losing acknowledgements and follow-ups. Monitor failures, queue lag, message delivery, and stuck conversations.
+Use a modular application with two distinct worker components: a TypeScript operational worker for intake, messaging, and domain commands, and a Python data worker for external-source ingestion and geospatial evidence processing. The operational worker uses pg-boss; Python claims application-owned jobs through a versioned internal API with leases, retries, and idempotent completion. Python never consumes pg-boss tables or changes aid decisions directly. See [component boundaries](components/README.md) and the [data-job contract](components/contracts/data-jobs.md). Acknowledge webhooks after durable acceptance; retry processing safely, quarantine failures, and allow operators to replay failed jobs. Store outbound messages in a transactional outbox to avoid losing acknowledgements and follow-ups. Monitor failures, queue lag, message delivery, and stuck conversations.
 
 A deterministic conversation flow is sufficient for the pilot. Optional AI can transcribe, translate, or propose structured fields; retain provenance and confirmation. AI should not invent locations, decide that an outage claim is false, or approve/deny aid.
 
@@ -326,14 +461,38 @@ Proposed product safeguards: avoid collecting political affiliation or identity 
 
 **Stage 2 — intake and CRM.** Implement outreach attribution, WhatsApp ingestion, short structured intake, human handoff, household/case records, contact permissions, and assisted entry. Gate: complete an intake, resume after interruption, correct it, and retrieve it without duplicate creation after webhook replay.
 
-**Stage 3 — response operations.** Implement needs, assignments, resource offers, allocations, partial deliveries, and recipient feedback. Gate: a simulated request can be tracked through delivery; concurrent allocations cannot exceed availability; service restoration does not silently close unresolved needs.
+**Stage 3 — triage and partner sharing.** Implement triage, shareable flags, partner
+organizations with vetting and scopes, the contactable list and exports, share events,
+share notices, resident follow-ups, and optional partner outcomes.
 
-Service-specific gates: a household requesting both services remains open after only one is completed; a partial water delivery leaves the balance outstanding; two simultaneous bookings cannot reserve the last charging slot twice; site closure triggers reassignment without marking bookings fulfilled; replaying a fulfillment submission does not increase totals; an interrupted charging session can be rebooked without duplicating the original need.
+Gates:
+
+- A simulated request can be tracked from intake through sharing to a resident-reported
+  outcome.
+- Partners never see non-consented, out-of-scope, or unvetted data.
+- Consent withdrawal removes a household from later lists.
+- Service restoration does not silently close unresolved needs.
+- A household with two needs remains open after only one is resolved.
+- A partner-reported "helped" does not resolve a need by itself.
 
 **Stage 4 — evidence review and dashboard.** Add geographic comparison candidates, explicit review decisions, freshness indicators, aggregate maps, and coverage metrics. Gate: nearby disagreement never automatically rejects aid; different-time restoration is not flagged as a simultaneous conflict; missing reports are displayed as unknown.
 
-**Stage 5 — bounded live pilot.** Launch in agreed communities with named staff and a manual fallback. Review completion, time to first action, unmet needs, correction volume, delivery confirmation, and who is excluded by the channel. Security gate: one organization cannot read another's records, including exports and background jobs. Set quantitative targets with the NGO after measuring baseline workflow capacity.
+**Stage 5 — bounded live pilot.** Launch in agreed communities with named staff and a manual fallback. Review completion, time to first action, unmet needs, correction volume, share rate,
+outcome responses, and who is excluded by the channel.
+
+Security gates:
+
+- One organization cannot read another's records, including exports and background
+  jobs.
+- A partner cannot read beyond its vetted scope. Set quantitative targets with the NGO after measuring baseline workflow capacity.
 
 **Stage 6 — multiple organizations.** Add scoped agreements, referrals, shared aggregate views, ownership handoffs, and revocation tests. Introduce sophisticated matching or infrastructure integrations only when data access and governance justify them.
 
-Next decisions: first NGO and communities; drinking versus other water supplies, delivery capacity and container arrangements; charging locations, supported devices, and appointment versus walk-in operation; who owns urgent follow-up; allowed outreach channels and existing contact permissions; minimum location granularity; and whether partner organizations need referrals, aggregate visibility, or shared case work.
+Decisions made and still open are tracked in the
+[requirements decisions table](components/REQUIREMENTS.md#decisions). Open launch
+blockers:
+
+- urgent referral content
+- partner vetting criteria and data-handling statement
+- contactable-list fields
+- the WhatsApp integration agreement with the adapter contributor
