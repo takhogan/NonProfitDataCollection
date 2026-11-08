@@ -1,5 +1,5 @@
 import { Link } from 'react-router';
-import { Zap, Utensils, HeartHandshake, MessageSquareText, MapPinned, UserRound, MapPin, Phone, SlidersHorizontal } from 'lucide-react';
+import { Bot, Database, Zap, Utensils, HeartHandshake, MessageSquareText, MapPinned, UserRound, MapPin, Phone, SlidersHorizontal } from 'lucide-react';
 import { useI18n } from '../../locales/i18n';
 import { useT, type ProductKey } from '../i18n';
 import { Tag, Pill, Stat } from '../../ui/kit';
@@ -103,6 +103,9 @@ export default function LandingPage() {
               <span className={s.howNum}>{i + 1}</span>
               <h3>{step.title}</h3>
               <p>{step.body}</p>
+              <div className={s.stepVisual} aria-hidden>
+                {i === 0 ? <ConfigureVisual /> : i === 1 ? <CollectVisual /> : <SeeVisual />}
+              </div>
             </div>
           ))}
         </div>
@@ -279,6 +282,104 @@ function DashboardPreview() {
         </div>
       </div>
       <p className={s.demoFoot}>{t('landing.demo.footnote')}</p>
+    </div>
+  );
+}
+
+/* Step illustrations for "How it works": decorative, CSS-only mini UIs. */
+
+function ConfigureVisual() {
+  const t = useT();
+  const rows: { label: ProductKey; on: boolean }[] = [
+    { label: 'landing.vis.qPower', on: true },
+    { label: 'landing.vis.qWater', on: true },
+    { label: 'landing.vis.qHousehold', on: true },
+    { label: 'landing.vis.qName', on: false },
+  ];
+  return (
+    <div className={s.mini}>
+      <div className={s.miniHead}>
+        <span className={s.miniAvatar}>
+          <Bot size={14} strokeWidth={1.75} />
+        </span>
+        <span className={s.miniTitle}>{t('landing.vis.botName')}</span>
+      </div>
+      <p className={s.miniCaption}>{t('landing.vis.questions')}</p>
+      {rows.map((r) => (
+        <div key={r.label} className={s.toggleRow}>
+          <span>{t(r.label)}</span>
+          <span className={`${s.switch} ${r.on ? s.switchOn : ''}`} />
+        </div>
+      ))}
+      <div className={`${s.toggleRow} ${s.toggleRowSep}`}>
+        <span>{t('landing.vis.share')}</span>
+        <span className={`${s.switch} ${s.switchOn}`} />
+      </div>
+    </div>
+  );
+}
+
+function CollectVisual() {
+  const t = useT();
+  return (
+    <div className={`${s.mini} ${s.miniChat}`}>
+      <div className={s.miniHead}>
+        <span className={`${s.miniAvatar} ${s.miniAvatarWa}`}>
+          <Bot size={14} strokeWidth={1.75} />
+        </span>
+        <span className={s.miniTitle}>WhatsApp</span>
+      </div>
+      <div className={s.waThread}>
+        <span className={`${s.wa} ${s.waIn}`}>{t('landing.vis.chat1')}</span>
+        <span className={`${s.wa} ${s.waOut}`}>{t('landing.vis.chat2')}</span>
+        <span className={`${s.wa} ${s.waIn}`}>{t('landing.vis.chat3')}</span>
+        <span className={`${s.wa} ${s.waOut}`}>{t('landing.vis.chat4')}</span>
+      </div>
+    </div>
+  );
+}
+
+function SeeVisual() {
+  const t = useT();
+  const yes = t('landing.vis.yes');
+  const no = t('landing.vis.no');
+  // Same synthetic areas and values as the mock reports (mockData.reportsSeed).
+  const rows = [
+    { area: 'Little Haiti', power: false, water: null, people: 3 },
+    { area: 'Liberty City', power: true, water: false, people: 4 },
+    { area: 'Allapattah', power: false, water: true, people: 2 },
+    { area: 'Overtown', power: null, water: true, people: 1 },
+  ];
+  const cell = (v: boolean | null) =>
+    v == null ? <span className={s.dbNull}>—</span> : <span className={v ? s.dbYes : s.dbNo}>{v ? yes : no}</span>;
+  return (
+    <div className={s.mini}>
+      <div className={s.miniHead}>
+        <span className={`${s.miniAvatar} ${s.miniAvatarDb}`}>
+          <Database size={14} strokeWidth={1.75} />
+        </span>
+        <span className={`${s.miniTitle} ${s.mono}`}>{t('landing.vis.table')}</span>
+      </div>
+      <table className={s.dbTable}>
+        <thead>
+          <tr>
+            <th>{t('landing.vis.colArea')}</th>
+            <th>{t('landing.vis.colPower')}</th>
+            <th>{t('landing.vis.colWater')}</th>
+            <th>{t('landing.vis.colPeople')}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((r) => (
+            <tr key={r.area}>
+              <td>{r.area}</td>
+              <td>{cell(r.power)}</td>
+              <td>{cell(r.water)}</td>
+              <td className="tnum">{r.people}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }
