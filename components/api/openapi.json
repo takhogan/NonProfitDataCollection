@@ -871,6 +871,52 @@
         }
       }
     },
+    "/campaigns/suggest-fields": {
+      "post": {
+        "tags": [
+          "dashboard"
+        ],
+        "summary": "Suggest Campaign Fields",
+        "operationId": "suggest_campaign_fields_campaigns_suggest_fields_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SuggestFieldsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuggestFieldsResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
     "/campaigns": {
       "get": {
         "tags": [
@@ -943,6 +989,53 @@
             "HTTPBearer": []
           }
         ]
+      }
+    },
+    "/campaigns/{campaign_id}/results": {
+      "get": {
+        "tags": [
+          "dashboard"
+        ],
+        "summary": "Campaign Results",
+        "operationId": "campaign_results_campaigns__campaign_id__results_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "campaign_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Campaign Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CampaignResults"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/ask": {
@@ -1155,6 +1248,13 @@
               }
             ],
             "title": "Ends At"
+          },
+          "fields": {
+            "items": {
+              "$ref": "#/components/schemas/CampaignField"
+            },
+            "type": "array",
+            "title": "Fields"
           }
         },
         "type": "object",
@@ -1205,6 +1305,13 @@
               }
             ],
             "title": "Ends At"
+          },
+          "fields": {
+            "items": {
+              "$ref": "#/components/schemas/CampaignField"
+            },
+            "type": "array",
+            "title": "Fields"
           }
         },
         "type": "object",
@@ -1213,6 +1320,160 @@
           "collection_template_id"
         ],
         "title": "CampaignCreate"
+      },
+      "CampaignField": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "label_es": {
+            "type": "string",
+            "title": "Label Es"
+          },
+          "label_en": {
+            "type": "string",
+            "title": "Label En"
+          },
+          "question_es": {
+            "type": "string",
+            "title": "Question Es"
+          },
+          "question_en": {
+            "type": "string",
+            "title": "Question En"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "core",
+              "boolean",
+              "number",
+              "choice",
+              "duration",
+              "text"
+            ],
+            "title": "Kind"
+          },
+          "core_key": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "area",
+                  "has_power",
+                  "has_water",
+                  "household_size",
+                  "urgent"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Core Key"
+          },
+          "options": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/CampaignFieldOption"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Options"
+          },
+          "unit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit"
+          },
+          "required": {
+            "type": "boolean",
+            "title": "Required",
+            "default": false
+          },
+          "rationale": {
+            "type": "string",
+            "title": "Rationale",
+            "default": ""
+          },
+          "recommended": {
+            "type": "boolean",
+            "title": "Recommended",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "label_es",
+          "label_en",
+          "question_es",
+          "question_en",
+          "kind"
+        ],
+        "title": "CampaignField",
+        "description": "One question a campaign asks. Core fields map to built-in intake concepts;\ncustom fields (boolean/number/choice/duration/text) are stored per-report in\nthe answers JSON and aggregated typed in the results endpoint."
+      },
+      "CampaignFieldOption": {
+        "properties": {
+          "value": {
+            "type": "string",
+            "title": "Value"
+          },
+          "label_es": {
+            "type": "string",
+            "title": "Label Es"
+          },
+          "label_en": {
+            "type": "string",
+            "title": "Label En"
+          }
+        },
+        "type": "object",
+        "required": [
+          "value",
+          "label_es",
+          "label_en"
+        ],
+        "title": "CampaignFieldOption"
+      },
+      "CampaignResults": {
+        "properties": {
+          "campaign_id": {
+            "type": "string",
+            "title": "Campaign Id"
+          },
+          "total_reports": {
+            "type": "integer",
+            "title": "Total Reports"
+          },
+          "aggregates": {
+            "items": {
+              "$ref": "#/components/schemas/FieldAggregate"
+            },
+            "type": "array",
+            "title": "Aggregates"
+          }
+        },
+        "type": "object",
+        "required": [
+          "campaign_id",
+          "total_reports",
+          "aggregates"
+        ],
+        "title": "CampaignResults"
       },
       "Channel": {
         "properties": {
@@ -1696,6 +1957,109 @@
         ],
         "title": "FeedResponse"
       },
+      "FieldAggregate": {
+        "properties": {
+          "field_id": {
+            "type": "string",
+            "title": "Field Id"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "core",
+              "boolean",
+              "number",
+              "choice",
+              "duration",
+              "text"
+            ],
+            "title": "Kind"
+          },
+          "label_en": {
+            "type": "string",
+            "title": "Label En"
+          },
+          "label_es": {
+            "type": "string",
+            "title": "Label Es"
+          },
+          "responses": {
+            "type": "integer",
+            "title": "Responses"
+          },
+          "yes_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Yes Pct"
+          },
+          "avg": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avg"
+          },
+          "min": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Min"
+          },
+          "max": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max"
+          },
+          "median": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Median"
+          },
+          "counts": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Counts"
+          }
+        },
+        "type": "object",
+        "required": [
+          "field_id",
+          "kind",
+          "label_en",
+          "label_es",
+          "responses"
+        ],
+        "title": "FieldAggregate"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -2176,6 +2540,71 @@
           "org_name"
         ],
         "title": "SignupRequest"
+      },
+      "SuggestFieldsRequest": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "purpose": {
+            "type": "string",
+            "title": "Purpose",
+            "default": ""
+          },
+          "collection_template_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Collection Template Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "SuggestFieldsRequest"
+      },
+      "SuggestFieldsResponse": {
+        "properties": {
+          "fields": {
+            "items": {
+              "$ref": "#/components/schemas/CampaignField"
+            },
+            "type": "array",
+            "title": "Fields"
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "llm",
+              "fallback"
+            ],
+            "title": "Source"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model"
+          }
+        },
+        "type": "object",
+        "required": [
+          "fields",
+          "source"
+        ],
+        "title": "SuggestFieldsResponse"
       },
       "TemplateQuestion": {
         "properties": {

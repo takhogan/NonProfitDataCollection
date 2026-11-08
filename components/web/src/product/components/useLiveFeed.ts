@@ -1,13 +1,18 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useProductApi } from '../../api/product/context';
 import type { FeedItem } from '../../api/product';
+import type { TimeRange } from './useDashboardData';
+
+const DAY = 24 * 3600_000;
 
 /**
  * Polls `GET /dashboard/feed?since=<cursor>` every `intervalMs` and accumulates
- * items newest-first. New items are flagged `isNew` on the first render after
- * arrival so the UI can animate them sliding in.
+ * items newest-first. New items are flagged in `newIds` on the first render
+ * after arrival so the UI can animate them in. When `range` is given, the
+ * returned items are filtered by `received_at` so the feed agrees with the rest
+ * of the dashboard.
  */
-export function useLiveFeed(intervalMs = 5000, max = 40) {
+export function useLiveFeed(intervalMs = 5000, max = 40, range: TimeRange = 'all') {
   const api = useProductApi();
   const [items, setItems] = useState<FeedItem[]>([]);
   const [newIds, setNewIds] = useState<Set<string>>(new Set());
@@ -42,5 +47,15 @@ export function useLiveFeed(intervalMs = 5000, max = 40) {
     };
   }, [api, intervalMs, max]);
 
-  return { items, newIds };
+  const filtered = useMemo(() => {
+    if (range === 'all') return items;
+    const now = Date.now();
+    const span = range === 'today' ? DAY : 7 * DAY;
+    return items.filter((i) => {
+      const t = Date.parse(i.received_at);
+      return Number.isNaN(t) || now - t < span;
+    });
+  }, [items, range]);
+
+  return { items: filtered, newIds };
 }

@@ -137,6 +137,52 @@
   background: #dcf8c6;
   border-top-right-radius: 2px;
 }
+.previewCaption {
+  margin: 0.6rem 0 0;
+  font-size: 0.82rem;
+  color: var(--muted);
+  text-align: center;
+}
+
+/* Read-only "Language: Any" row */
+.langRow {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.55rem 0.7rem;
+  background: var(--surface);
+  border-radius: var(--radius-sm);
+  font-size: 0.92rem;
+  color: var(--text);
+  line-height: 1.4;
+}
+.langIcon {
+  color: var(--muted);
+  flex-shrink: 0;
+}
+
+/* How decisions are made */
+.decisionsTitle {
+  margin: 1.5rem 0 0.75rem;
+  font-size: 1.05rem;
+}
+.decisions {
+  border-top: 0.5px solid var(--hairline);
+  margin-bottom: 1.25rem;
+}
+.decisionRow {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0.7rem 0;
+  border-bottom: 0.5px solid var(--hairline);
+  font-size: 0.92rem;
+  line-height: 1.4;
+}
+.decisionIcon {
+  color: var(--accent);
+  flex-shrink: 0;
+}
 
 /* Settings — segmented tabs + grouped sections */
 .settingsNav {

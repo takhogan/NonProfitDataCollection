@@ -47,3 +47,45 @@ export function useChannelLabel() {
     return k ? t(k) : channel;
   };
 }
+
+// Human, localized labels for extracted-field tags. Never show snake_case.
+const TAG_LABEL: Record<string, { es: string; en: string }> = {
+  no_power: { es: 'Sin luz', en: 'No power' },
+  no_water: { es: 'Sin agua', en: 'No water' },
+  intermittent_power: { es: 'Luz intermitente', en: 'Intermittent power' },
+  power_restored: { es: 'Luz restablecida', en: 'Power restored' },
+  water_restored: { es: 'Agua restablecida', en: 'Water restored' },
+  elderly: { es: 'Adulto mayor', en: 'Elderly' },
+  medical: { es: 'Médico', en: 'Medical' },
+  urgent: { es: 'Urgente', en: 'Urgent' },
+};
+
+// Human labels for service type + status (shown as "Luz · No disponible").
+const SERVICE_LABEL: Record<string, { es: string; en: string }> = {
+  electricity: { es: 'Luz', en: 'Power' },
+  piped_water: { es: 'Agua', en: 'Water' },
+};
+const SERVICE_STATUS_LABEL: Record<string, { es: string; en: string }> = {
+  unavailable: { es: 'No disponible', en: 'Unavailable' },
+  available: { es: 'Disponible', en: 'Available' },
+  intermittent: { es: 'Intermitente', en: 'Intermittent' },
+  unknown: { es: 'Desconocido', en: 'Unknown' },
+};
+
+function humanize(raw: string): string {
+  // Fallback: turn snake_case into Title Case rather than ever showing raw.
+  return raw
+    .split('_')
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(' ');
+}
+
+/** Hook returning localized label functions for tags / service / status. */
+export function useLabels() {
+  const { lang } = useI18n();
+  return {
+    tag: (raw: string) => TAG_LABEL[raw]?.[lang] ?? humanize(raw),
+    service: (raw: string) => SERVICE_LABEL[raw]?.[lang] ?? humanize(raw),
+    serviceStatus: (raw: string) => SERVICE_STATUS_LABEL[raw]?.[lang] ?? humanize(raw),
+  };
+}

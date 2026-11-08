@@ -240,6 +240,18 @@ def area_breakdown(db: Session, org_id: str) -> list[dict]:
     return out
 
 
+def campaign_answers(db: Session, org_id: str, campaign_id: str | None = None,
+                     limit: int = 5000) -> list[dict]:
+    """Return the ``answers_json`` of each report for the org (optionally scoped to
+    one campaign). Custom campaign-field answers live under their field id here."""
+    q = select(Report.answers_json).where(Report.organization_id == org_id)
+    if campaign_id is not None:
+        q = q.where(Report.campaign_id == campaign_id)
+    q = q.limit(limit)
+    rows = db.scalars(q).all()
+    return [dict(a) for a in rows if isinstance(a, dict)]
+
+
 def feed(db: Session, org_id: str, since: str | None = None, limit: int = 20) -> list[dict]:
     q = select(Report).where(Report.organization_id == org_id)
     if since:

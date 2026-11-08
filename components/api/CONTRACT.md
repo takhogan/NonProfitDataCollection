@@ -314,18 +314,84 @@ Returns the updated `ReportDetail`.
 
 ## Campaigns
 
+A campaign carries a `fields[]` list — the questionnaire it collects. Each field
+is a **CampaignField**:
+
+```jsonc
+{
+  "id": "hours_without_power",      // snake_case, unique within the campaign
+  "label_es": "Horas sin electricidad",
+  "label_en": "Hours without power",
+  "question_es": "¿Cuántas horas lleva sin electricidad?",
+  "question_en": "How many hours have you been without power?",
+  "kind": "duration",               // core | boolean | number | choice | duration | text
+  "core_key": null,                 // only for kind="core": area|has_power|has_water|household_size|urgent
+  "options": null,                  // only for kind="choice": [{value,label_es,label_en}]
+  "unit": "hours",                  // for kind="number"|"duration"
+  "required": false,
+  "rationale": "Shows how long outages have persisted per area.",
+  "recommended": true
+}
+```
+
+### POST `/campaigns/suggest-fields`
+Suggests 5–8 CampaignFields for a new campaign. Calls OpenAI (Structured Outputs,
+`OPENAI_MODEL`, key from Secret Manager) using the org profile from the DB; always
+includes `area`, prefers core fields, marks 3–5 as recommended. **If the LLM call
+fails, falls back to the template's default fields** (`source: "fallback"`).
+
+Request:
+```json
+{"name": "November Outage Watch", "purpose": "Track power/water outages and who is most affected",
+ "collection_template_id": "power_water_outages"}
+```
+Response:
+```json
+{"source": "llm", "model": "gpt-4o-mini",
+ "fields": [ { "id": "area", "kind": "core", "core_key": "area", "recommended": true, "...": "..." } ]}
+```
+`source` is `"llm"` when OpenAI answered, `"fallback"` when template defaults were used.
+
 ### POST `/campaigns`
+Accepts an optional `fields[]` (list of CampaignField) stored with the campaign.
 ```json
 {"name": "November Outage Watch", "collection_template_id": "power_water_outages",
- "areas": ["Little Haiti", "Liberty City"], "starts_at": "2026-11-01T00:00:00+00:00", "ends_at": null}
+ "areas": ["Little Haiti", "Liberty City"], "starts_at": "2026-11-01T00:00:00+00:00",
+ "ends_at": null, "fields": [ /* CampaignField[] */ ]}
 ```
 ### GET `/campaigns`
 ```json
 [
   {"id": "camp-1", "name": "November Outage Watch", "collection_template_id": "power_water_outages",
    "areas": ["Little Haiti", "Liberty City", "Overtown", "Allapattah"], "status": "active",
-   "starts_at": "2026-11-01T00:00:00+00:00", "ends_at": null}
+   "starts_at": "2026-11-01T00:00:00+00:00", "ends_at": null, "fields": [ /* CampaignField[] */ ]}
 ]
+```
+
+### GET `/campaigns/{id}/results`
+A typed aggregate per custom field, computed from reports' answer JSON. Core
+fields are omitted (their metrics are on the dashboard). Empty aggregates
+(`responses: 0`) when there's no data yet.
+
+- `boolean` → `yes_pct`
+- `number` → `avg`, `min`, `max`
+- `choice` → `counts` per option
+- `duration` → `median`
+- `text` → `responses` count only
+
+```json
+{
+  "campaign_id": "camp-1", "total_reports": 42,
+  "aggregates": [
+    {"field_id": "children_in_home", "kind": "boolean", "label_en": "Children in home",
+     "label_es": "Niños en el hogar", "responses": 42, "yes_pct": 61.9, "counts": {}},
+    {"field_id": "hours_without_power", "kind": "duration", "label_en": "Hours without power",
+     "label_es": "Horas sin electricidad", "responses": 40, "median": 18.0, "counts": {}},
+    {"field_id": "shelter_status", "kind": "choice", "label_en": "Shelter status",
+     "label_es": "Estado del refugio", "responses": 42,
+     "counts": {"safe": 20, "damaged": 15, "displaced": 7, "unknown": 0}}
+  ]
+}
 ```
 
 ---

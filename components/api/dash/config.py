@@ -24,6 +24,11 @@ class Settings(BaseSettings):
     # Comma-separated allowed browser origins for the frontend (credentialed CORS).
     web_origins: str = "http://localhost:5173,http://localhost:3000"
 
+    # OpenAI for AI campaign-field suggestions. Key comes from Secret Manager in
+    # production; empty locally -> the endpoint falls back to template defaults.
+    openai_api_key: str = ""
+    openai_model: str = "gpt-4o-mini"
+
     @property
     def cors_origins(self) -> list[str]:
         return [o.strip() for o in self.web_origins.split(",") if o.strip()]

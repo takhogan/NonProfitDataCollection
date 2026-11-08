@@ -228,6 +228,40 @@ class ReportPatch(BaseModel):
     assignee: str | None = None
 
 
+# ---- Campaign fields (AI-suggested questionnaire fields) -------------------
+
+# The kinds a campaign field may take. `core` maps to a built-in intake concept
+# (see CoreKey); the rest are custom fields stored in the report's answers JSON.
+CampaignFieldKind = Literal["core", "boolean", "number", "choice", "duration", "text"]
+
+# Allowed core_key values (only meaningful when kind == "core").
+CoreKey = Literal["area", "has_power", "has_water", "household_size", "urgent"]
+
+
+class CampaignFieldOption(BaseModel):
+    value: str
+    label_es: str
+    label_en: str
+
+
+class CampaignField(BaseModel):
+    """One question a campaign asks. Core fields map to built-in intake concepts;
+    custom fields (boolean/number/choice/duration/text) are stored per-report in
+    the answers JSON and aggregated typed in the results endpoint."""
+    id: str                                  # snake_case, unique within the campaign
+    label_es: str
+    label_en: str
+    question_es: str
+    question_en: str
+    kind: CampaignFieldKind
+    core_key: CoreKey | None = None          # only for kind == "core"
+    options: list[CampaignFieldOption] | None = None   # only for kind == "choice"
+    unit: str | None = None                  # for kind in {number, duration}
+    required: bool = False
+    rationale: str = ""                      # why this field is suggested
+    recommended: bool = False
+
+
 # ---- Campaigns -------------------------------------------------------------
 
 class CampaignCreate(BaseModel):
@@ -236,6 +270,7 @@ class CampaignCreate(BaseModel):
     areas: list[str] = Field(default_factory=list)
     starts_at: str | None = None
     ends_at: str | None = None
+    fields: list[CampaignField] = Field(default_factory=list)
 
 
 class Campaign(BaseModel):
@@ -246,6 +281,42 @@ class Campaign(BaseModel):
     status: str
     starts_at: str | None = None
     ends_at: str | None = None
+    fields: list[CampaignField] = Field(default_factory=list)
+
+
+class SuggestFieldsRequest(BaseModel):
+    name: str
+    purpose: str = ""                        # free-text description of the campaign
+    collection_template_id: str | None = None
+
+
+class SuggestFieldsResponse(BaseModel):
+    fields: list[CampaignField]
+    source: Literal["llm", "fallback"]       # whether the LLM answered or we fell back
+    model: str | None = None
+
+
+# ---- Campaign results (typed aggregates over custom fields) ----------------
+
+class FieldAggregate(BaseModel):
+    field_id: str
+    kind: CampaignFieldKind
+    label_en: str
+    label_es: str
+    responses: int                           # how many reports answered this field
+    # Populated per kind (others stay null/empty):
+    yes_pct: float | None = None             # boolean → % answering yes
+    avg: float | None = None                 # number → mean
+    min: float | None = None                 # number → min
+    max: float | None = None                 # number → max
+    median: float | None = None              # duration → median
+    counts: dict[str, int] = Field(default_factory=dict)  # choice → per-option counts
+
+
+class CampaignResults(BaseModel):
+    campaign_id: str
+    total_reports: int
+    aggregates: list[FieldAggregate]
 
 
 # ---- Ask (NL question) -----------------------------------------------------
