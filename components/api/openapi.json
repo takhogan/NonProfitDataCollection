@@ -1993,9 +1993,9 @@
                 "enum": [
                   "draft",
                   "confirmed",
-                  "review",
                   "superseded",
-                  "withdrawn"
+                  "withdrawn",
+                  "abandoned"
                 ]
               },
               {

@@ -1,74 +1,103 @@
 """Auth, current user, org profile/onboarding, data-protection, channels, contacts.
 
-STEP 1: returns realistic fake data from app.fakestore. Shapes are the contract.
+STEP 1: returns realistic fake data from dash.fakestore. Shapes are the contract.
 """
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, UploadFile
+from sqlalchemy.orm import Session
 
-from app.context import RequestContext, resolve_data_protection
-from app.deps import get_context
-from app.errors import Conflict, PermissionDenied
-from app.fakestore import (
-    ORG_BOT_CONFIG, ORG_CHANNELS, ORG_DASHBOARD_CONFIG, ORG_DATA_PROTECTION,
-    ORG_PROFILE, USERS,
+from dash.context import RequestContext, resolve_data_protection
+from dash.deps import get_context, get_db
+from dash.errors import Conflict
+from dash.read_models import (
+    find_user_by_email, memberships_for_user, user_by_id,
 )
-from app.security import create_access_token
-from app import schemas as S
+from dash.security import create_access_token
+from dash.shared_db import models
+from dash import schemas as S
+from dash import settings_store
+
+# Reuse whatsapp/api's password hashing (same scheme) via the shared bridge.
+import app.security as intake_security  # noqa: E402
 
 router = APIRouter(tags=["auth-org"])
 
 
-# ---- Auth ------------------------------------------------------------------
+# ---- Auth (real DB) --------------------------------------------------------
 
 @router.post("/auth/signup", response_model=S.TokenResponse)
-def signup(body: S.SignupRequest) -> S.TokenResponse:
-    if body.email in USERS:
+def signup(body: S.SignupRequest, db: Session = Depends(get_db)) -> S.TokenResponse:
+    if find_user_by_email(db, body.email) is not None:
         raise Conflict("email already registered")
-    user_id = f"user-{len(USERS) + 1}"
-    org_id = f"org-{len(USERS) + 1}"
-    USERS[body.email] = {
-        "password": body.password, "user_id": user_id, "org_id": org_id,
-        "org_name": body.org_name, "role": "org_admin",
-    }
-    ORG_PROFILE[org_id] = {
-        "name": body.org_name, "type": body.org_type, "mission": "", "region": "",
-        "languages": [], "population_served": "", "team_size": None,
-    }
-    ORG_DATA_PROTECTION[org_id] = dict(ORG_DATA_PROTECTION["org-demo"])
-    ORG_CHANNELS[org_id] = [dict(c) for c in ORG_CHANNELS["org-demo"]]
-    return S.TokenResponse(access_token=create_access_token(user_id))
+    org = models.Organization(name=body.org_name, status="active")
+    db.add(org)
+    db.flush()
+    user = models.User(
+        auth_subject=body.email, display_name=body.display_name,
+        password_hash=intake_security.hash_password(body.password),
+    )
+    db.add(user)
+    db.flush()
+    db.add(models.OrganizationMembership(
+        organization_id=org.id, user_id=user.id, role="org_admin", status="active",
+    ))
+    db.commit()
+    # Dashboard-managed org settings defaults (durable, in policy_version).
+    settings_store.put_setting(db, org.id, "profile", {
+        **_DEFAULT_PROFILE, "name": body.org_name, "type": body.org_type})
+    settings_store.put_setting(db, org.id, "data_protection", {"preset": "standard"})
+    settings_store.put_setting(db, org.id, "channels", _DEFAULT_CHANNELS)
+    return S.TokenResponse(access_token=create_access_token(user.id))
 
 
 @router.post("/auth/login", response_model=S.TokenResponse)
-def login(body: S.LoginRequest) -> S.TokenResponse:
-    rec = USERS.get(body.email)
-    if rec is None or rec["password"] != body.password:
+def login(body: S.LoginRequest, db: Session = Depends(get_db)) -> S.TokenResponse:
+    user = find_user_by_email(db, body.email)
+    if user is None or not intake_security.verify_password(body.password, user.password_hash):
         raise PermissionDenied("Invalid credentials")
-    return S.TokenResponse(access_token=create_access_token(rec["user_id"]))
+    return S.TokenResponse(access_token=create_access_token(user.id))
 
 
 @router.get("/me", response_model=S.MeResponse)
-def me(ctx: RequestContext = Depends(get_context)) -> S.MeResponse:
-    email = next((e for e, r in USERS.items() if r["user_id"] == ctx.actor_id), "")
+def me(ctx: RequestContext = Depends(get_context), db: Session = Depends(get_db)) -> S.MeResponse:
+    user = user_by_id(db, ctx.actor_id)
+    rows = memberships_for_user(db, ctx.actor_id)
     return S.MeResponse(
-        id=ctx.actor_id, email=email, display_name=ctx.org_name and "" or "",
+        id=user.id, email=user.auth_subject, display_name=user.display_name,
         memberships=[S.MembershipOut(
-            organization_id=ctx.org_id, organization_name=ctx.org_name, role=ctx.role,
-        )],
+            organization_id=o.id, organization_name=o.name, role=m.role,
+        ) for (m, o) in rows],
     )
 
 
-# ---- Org profile / onboarding ----------------------------------------------
+# ---- Org profile / onboarding (durable via settings_store) -----------------
+
+_DEFAULT_PROFILE = {
+    "name": "", "type": "community", "mission": "", "region": "",
+    "languages": [], "population_served": "", "team_size": None,
+}
+_DEFAULT_CHANNELS = {"channels": [
+    {"channel": "whatsapp", "status": "disconnected", "identifier": None, "mode": "shared_bot"},
+    {"channel": "sms", "status": "disconnected", "identifier": None, "mode": "own_number"},
+    {"channel": "telegram", "status": "disconnected", "identifier": None, "mode": "own_number"},
+    {"channel": "email", "status": "disconnected", "identifier": None, "mode": "own_number"},
+]}
+
 
 @router.get("/org/profile", response_model=S.OrgProfile)
-def get_org_profile(ctx: RequestContext = Depends(get_context)) -> S.OrgProfile:
-    return S.OrgProfile(**ORG_PROFILE[ctx.org_id])
+def get_org_profile(ctx: RequestContext = Depends(get_context),
+                    db: Session = Depends(get_db)) -> S.OrgProfile:
+    stored = settings_store.get_setting(db, ctx.org_id, "profile")
+    if stored is None:
+        stored = {**_DEFAULT_PROFILE, "name": ctx.org_name}
+    return S.OrgProfile(**stored)
 
 
 @router.put("/org/profile", response_model=S.OrgProfile)
-def put_org_profile(body: S.OrgProfile, ctx: RequestContext = Depends(get_context)) -> S.OrgProfile:
-    ORG_PROFILE[ctx.org_id] = body.model_dump()
+def put_org_profile(body: S.OrgProfile, ctx: RequestContext = Depends(get_context),
+                    db: Session = Depends(get_db)) -> S.OrgProfile:
+    settings_store.put_setting(db, ctx.org_id, "profile", body.model_dump())
     return body
 
 
@@ -78,11 +107,12 @@ def collection_templates(ctx: RequestContext = Depends(get_context)) -> list[S.C
 
 
 @router.get("/templates/collection/recommended", response_model=S.RecommendedTemplates)
-def recommended_templates(ctx: RequestContext = Depends(get_context)) -> S.RecommendedTemplates:
-    # Simple rule from the org profile (fake): outage-focused orgs get power/water.
-    profile = ORG_PROFILE.get(ctx.org_id, {})
+def recommended_templates(ctx: RequestContext = Depends(get_context),
+                          db: Session = Depends(get_db)) -> S.RecommendedTemplates:
+    # Simple rule from the stored org profile.
+    profile = settings_store.get_setting(db, ctx.org_id, "profile", _DEFAULT_PROFILE)
     ids = ["power_water_outages"]
-    if "elderly" in (profile.get("population_served", "").lower()):
+    if "elderly" in (profile.get("population_served", "") or "").lower():
         ids.append("elderly_check_ins")
     return S.RecommendedTemplates(
         recommended_collection_ids=ids,
@@ -96,24 +126,28 @@ def dashboard_templates(ctx: RequestContext = Depends(get_context)) -> list[S.Da
 
 
 @router.put("/org/bot-config", response_model=S.BotConfig)
-def put_bot_config(body: S.BotConfig, ctx: RequestContext = Depends(get_context)) -> S.BotConfig:
-    ORG_BOT_CONFIG[ctx.org_id] = body.model_dump()
+def put_bot_config(body: S.BotConfig, ctx: RequestContext = Depends(get_context),
+                   db: Session = Depends(get_db)) -> S.BotConfig:
+    settings_store.put_setting(db, ctx.org_id, "bot_config", body.model_dump())
     return body
 
 
 @router.put("/org/dashboard-config", response_model=S.DashboardConfig)
-def put_dashboard_config(body: S.DashboardConfig, ctx: RequestContext = Depends(get_context)) -> S.DashboardConfig:
-    ORG_DASHBOARD_CONFIG[ctx.org_id] = body.model_dump()
+def put_dashboard_config(body: S.DashboardConfig, ctx: RequestContext = Depends(get_context),
+                         db: Session = Depends(get_db)) -> S.DashboardConfig:
+    settings_store.put_setting(db, ctx.org_id, "dashboard_config", body.model_dump())
     return body
 
 
-# ---- Data protection -------------------------------------------------------
+# ---- Data protection (durable) ---------------------------------------------
 
 @router.get("/org/data-protection", response_model=S.DataProtectionConfig)
-def get_data_protection(ctx: RequestContext = Depends(get_context)) -> S.DataProtectionConfig:
+def get_data_protection(ctx: RequestContext = Depends(get_context),
+                        db: Session = Depends(get_db)) -> S.DataProtectionConfig:
     # Return the RESOLVED settings (preset flags applied) so the UI shows what the
     # preset actually enforces, matching what the API does to responses.
-    dp = resolve_data_protection(ORG_DATA_PROTECTION[ctx.org_id])
+    stored = settings_store.get_setting(db, ctx.org_id, "data_protection", {"preset": "standard"})
+    dp = resolve_data_protection(stored)
     return S.DataProtectionConfig(
         preset=dp.preset, store_names=dp.store_names,
         location_precision=dp.location_precision,
@@ -126,21 +160,35 @@ def get_data_protection(ctx: RequestContext = Depends(get_context)) -> S.DataPro
 
 
 @router.put("/org/data-protection", response_model=S.DataProtectionConfig)
-def put_data_protection(body: S.DataProtectionConfig, ctx: RequestContext = Depends(get_context)) -> S.DataProtectionConfig:
-    ORG_DATA_PROTECTION[ctx.org_id] = body.model_dump()
-    return body
+def put_data_protection(body: S.DataProtectionConfig, ctx: RequestContext = Depends(get_context),
+                        db: Session = Depends(get_db)) -> S.DataProtectionConfig:
+    settings_store.put_setting(db, ctx.org_id, "data_protection", body.model_dump())
+    # Return resolved so the response matches what the API will enforce.
+    dp = resolve_data_protection(body.model_dump())
+    return S.DataProtectionConfig(
+        preset=dp.preset, store_names=dp.store_names,
+        location_precision=dp.location_precision,
+        raw_message_retention_days=dp.raw_message_retention_days,
+        mask_phone_numbers=dp.mask_phone_numbers, redact_exports=dp.redact_exports,
+        individual_records_roles=list(dp.individual_records_roles),
+        audit_log_enabled=dp.audit_log_enabled,
+        hide_individual_records=dp.hide_individual_records,
+    )
 
 
-# ---- Channels --------------------------------------------------------------
+# ---- Channels (durable) ----------------------------------------------------
 
 @router.get("/org/channels", response_model=S.ChannelsConfig)
-def get_channels(ctx: RequestContext = Depends(get_context)) -> S.ChannelsConfig:
-    return S.ChannelsConfig(channels=[S.Channel(**c) for c in ORG_CHANNELS[ctx.org_id]])
+def get_channels(ctx: RequestContext = Depends(get_context),
+                 db: Session = Depends(get_db)) -> S.ChannelsConfig:
+    stored = settings_store.get_setting(db, ctx.org_id, "channels", _DEFAULT_CHANNELS)
+    return S.ChannelsConfig(channels=[S.Channel(**c) for c in stored["channels"]])
 
 
 @router.put("/org/channels", response_model=S.ChannelsConfig)
-def put_channels(body: S.ChannelsConfig, ctx: RequestContext = Depends(get_context)) -> S.ChannelsConfig:
-    ORG_CHANNELS[ctx.org_id] = [c.model_dump() for c in body.channels]
+def put_channels(body: S.ChannelsConfig, ctx: RequestContext = Depends(get_context),
+                 db: Session = Depends(get_db)) -> S.ChannelsConfig:
+    settings_store.put_setting(db, ctx.org_id, "channels", body.model_dump())
     return body
 
 

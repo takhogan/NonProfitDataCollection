@@ -6,14 +6,14 @@ report rows (masked phones, omitted names, area-level location).
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Query
+from sqlalchemy.orm import Session
 
-from app.context import RequestContext
-from app.deps import get_context
-from app.errors import NotFound
-from app.fakestore import (
-    MIAMI_AREAS, fake_feed, fake_report_detail, fake_reports,
-)
-from app import schemas as S
+from dash.context import RequestContext
+from dash.deps import get_context, get_db
+from dash.errors import NotFound
+from dash.fakestore import MIAMI_AREAS
+from dash import read_models as RM
+from dash import schemas as S
 
 router = APIRouter(tags=["dashboard"])
 
@@ -34,45 +34,41 @@ def _apply_privacy(ctx: RequestContext, row: dict) -> dict:
 
 # ---- Dashboard -------------------------------------------------------------
 
+def _top_areas_phrase(areas: list[dict]) -> str:
+    names = [a["area"] for a in areas[:2] if a.get("area")]
+    if not names:
+        return "No area stands out yet."
+    return f"{' and '.join(names)} are the hardest hit."
+
+
 @router.get("/dashboard/summary", response_model=S.DashboardSummary)
-def dashboard_summary(ctx: RequestContext = Depends(get_context)) -> S.DashboardSummary:
-    reports = fake_reports()
-    without_power = sum(1 for r in reports if r["service_type"] == "electricity"
-                        and r["service_status"] in ("unavailable", "intermittent"))
-    without_water = sum(1 for r in reports if r["service_type"] == "piped_water"
-                        and r["service_status"] in ("unavailable", "intermittent"))
-    urgent = sum(1 for r in reports if r["urgent"])
+def dashboard_summary(ctx: RequestContext = Depends(get_context),
+                      db: Session = Depends(get_db)) -> S.DashboardSummary:
+    m = RM.dashboard_metrics(db, ctx.org_id)
+    areas = RM.area_breakdown(db, ctx.org_id)
     return S.DashboardSummary(
-        summary=(f"{len(reports)} reports today across {ctx.org_name}: "
-                 f"{without_power} without power, {without_water} without water, "
-                 f"{urgent} urgent. Little Haiti and Allapattah are the hardest hit."),
-        metrics=S.DashboardMetrics(
-            reports_today=len(reports), without_power=without_power,
-            without_water=without_water, urgent=urgent,
-        ),
-        generated_at="2026-11-08T14:00:00+00:00",
+        summary=(f"{m['reports_today']} reports in the last 24h across {ctx.org_name}: "
+                 f"{m['without_power']} without power, {m['without_water']} without water, "
+                 f"{m['urgent']} urgent. {_top_areas_phrase(areas)}"),
+        metrics=S.DashboardMetrics(**m),
+        generated_at=RM._utcnow().isoformat(),
     )
 
 
 @router.get("/dashboard/areas", response_model=list[S.AreaCount])
-def dashboard_areas(ctx: RequestContext = Depends(get_context)) -> list[S.AreaCount]:
-    # Fake per-neighborhood rollup.
-    data = [
-        ("Little Haiti", 18, 12, 4, 5), ("Liberty City", 14, 6, 9, 3),
-        ("Overtown", 9, 5, 2, 1), ("Allapattah", 12, 8, 3, 4),
-        ("Hialeah", 11, 3, 6, 1), ("Little Havana", 8, 4, 2, 1),
-    ]
-    return [S.AreaCount(area=a, reports=n, without_power=p, without_water=w, urgent=u)
-            for (a, n, p, w, u) in data]
+def dashboard_areas(ctx: RequestContext = Depends(get_context),
+                    db: Session = Depends(get_db)) -> list[S.AreaCount]:
+    return [S.AreaCount(**a) for a in RM.area_breakdown(db, ctx.org_id)]
 
 
 @router.get("/dashboard/feed", response_model=S.FeedResponse)
 def dashboard_feed(
     since: str | None = Query(default=None),
     ctx: RequestContext = Depends(get_context),
+    db: Session = Depends(get_db),
 ) -> S.FeedResponse:
-    items = [S.FeedItem(**it) for it in fake_feed()]
-    return S.FeedResponse(items=items, cursor=items[0].received_at if items else None)
+    items = [S.FeedItem(**it) for it in RM.feed(db, ctx.org_id, since=since)]
+    return S.FeedResponse(items=items, cursor=items[-1].received_at if items else None)
 
 
 # ---- Reports (replaces cases) ---------------------------------------------
@@ -81,36 +77,31 @@ def dashboard_feed(
 def list_reports(
     status: str | None = Query(default=None),
     ctx: RequestContext = Depends(get_context),
+    db: Session = Depends(get_db),
 ) -> list[S.ReportSummary]:
-    rows = fake_reports()
-    if status:
-        rows = [r for r in rows if r["status"] == status]
+    rows = RM.list_reports(db, ctx.org_id, status=status)
     return [S.ReportSummary(**_apply_privacy(ctx, r)) for r in rows]
 
 
 @router.get("/reports/{report_id}", response_model=S.ReportDetail)
-def get_report(report_id: str, ctx: RequestContext = Depends(get_context)) -> S.ReportDetail:
+def get_report(report_id: str, ctx: RequestContext = Depends(get_context),
+               db: Session = Depends(get_db)) -> S.ReportDetail:
     # `minimal` preset exposes aggregates only — no individual report records.
     if ctx.data_protection.hide_individual_records:
         raise NotFound("individual records are hidden under the minimal privacy preset")
-    row = fake_report_detail(report_id)
+    row = RM.get_report(db, ctx.org_id, report_id)
     if row is None:
         raise NotFound("report not found")
-    row = _apply_privacy(ctx, row)
-    return S.ReportDetail(**row)
+    return S.ReportDetail(**_apply_privacy(ctx, row))
 
 
 @router.patch("/reports/{report_id}", response_model=S.ReportDetail)
-def patch_report(report_id: str, body: S.ReportPatch, ctx: RequestContext = Depends(get_context)) -> S.ReportDetail:
-    row = fake_report_detail(report_id)
+def patch_report(report_id: str, body: S.ReportPatch, ctx: RequestContext = Depends(get_context),
+                 db: Session = Depends(get_db)) -> S.ReportDetail:
+    row = RM.patch_report(db, ctx.org_id, report_id,
+                          status=body.status, notes=body.notes, assignee=body.assignee)
     if row is None:
         raise NotFound("report not found")
-    if body.status is not None:
-        row["status"] = body.status
-    if body.notes is not None:
-        row["notes"] = body.notes
-    if body.assignee is not None:
-        row["assignee"] = body.assignee
     return S.ReportDetail(**_apply_privacy(ctx, row))
 
 

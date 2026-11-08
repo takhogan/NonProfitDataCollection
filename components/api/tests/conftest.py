@@ -1,7 +1,15 @@
-import pytest
-from fastapi.testclient import TestClient
+import os
 
-from app.main import app
+import pytest
+
+# Point at the shared seeded SQLite DB before the app/config import reads it.
+os.environ.setdefault(
+    "DATABASE_URL", "sqlite:///../whatsapp/api/local-data/aid.sqlite3"
+)
+
+from fastapi.testclient import TestClient  # noqa: E402
+
+from dash.main import app  # noqa: E402
 
 
 @pytest.fixture()
