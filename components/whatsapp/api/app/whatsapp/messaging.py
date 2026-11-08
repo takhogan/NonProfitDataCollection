@@ -1,4 +1,9 @@
-"""Inbound processing + outbox sending for WhatsApp (Step 1: canned greeting).
+"""DEPRECATED Step 1 (canned greeting over ``outbound_message``). The worker no
+longer calls this module; the conversation engine (engine.py, inbound.py,
+sender.py) replaced it. Kept so its tests document the old behavior until the
+``outbound_message`` table is dropped.
+
+Inbound processing + outbox sending for WhatsApp (Step 1: canned greeting).
 
 process_inbound_event: route one inbound_event. For a text message, queue a
 single Spanish greeting into the outbox IN THE SAME TRANSACTION as marking the

@@ -18,7 +18,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.models.base import Base, TenantOwned, check_in, org_fk, org_scoped
+from app.models.base import Base, JSONType, TenantOwned, check_in, org_fk, org_scoped
 
 CHANNELS = ("whatsapp", "sms", "phone", "volunteer_assisted")
 ENDPOINT_STATUSES = ("active", "opted_out", "deleted")
@@ -119,6 +119,9 @@ class Conversation(TenantOwned, Base):
     intake_state: Mapped[str] = mapped_column(String(64), nullable=False, default="start")
     last_user_message_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     assigned_membership_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    # Questionnaire state machine (app.whatsapp.engine). Sensitive values inside
+    # are app-encrypted; see app.crypto.
+    state_json: Mapped[dict] = mapped_column(JSONType, nullable=False, default=dict)
 
 
 class Message(TenantOwned, Base):

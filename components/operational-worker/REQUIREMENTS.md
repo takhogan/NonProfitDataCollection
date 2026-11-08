@@ -103,7 +103,17 @@ contributor, built against `WA-001`. Tests use the fake adapter.
 - **OPW-022 (P0) Media.** Voice notes and images are not downloaded. The bot explains this
   and offers buttons or a human. Playback is a P1 decision (D13).
 - **OPW-023 (P0) Free text.** Free text is stored as a restricted, encrypted note per
-  NFR-09, and never sent to third-party AI services.
+  NFR-09. It is not sent to third-party AI services, with one opt-in exception
+  (amended 2026-11-08):
+  - With `OPENAI_EXTRACTION` on (off by default), a short typed answer that the
+    deterministic parser cannot read may be sent to OpenAI with the question it
+    answers, to fill the report fields.
+  - It is redacted first (phone numbers, e-mails, links, ID numbers; max 280
+    characters). Address and landmark answers, names, consent answers and the
+    sender's number are never sent.
+  - The model answers in a fixed JSON schema. Code validates every value and
+    writes the rows; the model never chooses ids or writes SQL.
+  - Enabling it needs the operating NGO's agreement.
 - **OPW-024 (P0) Abuse detection.** Per-contact and per-area spikes create review tasks
   and slow replies. They never delete or exclude reports (`DOM-073`).
 

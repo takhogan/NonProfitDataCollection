@@ -278,8 +278,9 @@ gcloud run deploy aid-worker \
 Notes:
 - `WHATSAPP_ADAPTER=graph` switches from the in-memory fake to the real Meta
   Graph API. The API service does not send, so it can stay on the default.
-- `PILOT_ORG_NAME` is inserted into the canned Spanish greeting
-  (`Somos <name>.`). Set it to the pilot NGO's name.
+- `PILOT_ORG_NAME` is only a fallback now. The bot speaks as the campaign's
+  display identity ("Metron Reporter") and names the organization that owns the
+  receiving number (see "Link the WhatsApp number" below).
 - `--min-instances=1` keeps the poller alive (no cold starts dropping the loop).
 - `--no-cpu-throttling` lets the loop run between HTTP requests (the worker has
   no HTTP traffic, so without this its CPU would be throttled to near zero).
@@ -293,6 +294,47 @@ Notes:
 
 > **Re-run migrations before deploying this version** — it adds the
 > `outbound_message` table. `gcloud run jobs execute aid-migrate --region=$REGION --wait`.
+
+### Conversation engine (migration `5e8a1c2d4f60`)
+
+The worker now runs the full reporting questionnaire (see
+[app/whatsapp/README.md](app/whatsapp/README.md)). Before deploying it:
+
+1. **Two new required secrets.** `DATA_ENCRYPTION_KEY` and `LOOKUP_HMAC_KEY`
+   (base64, 32 bytes) encrypt phone numbers, addresses and notes and make the
+   phone lookup HMAC. In production the API **and** the worker refuse to start
+   without them. `deploy/gcloud-deploy.sh secrets` creates them once
+   (`data-encryption-key`, `lookup-hmac-key`) and never rotates them; rotating
+   the data key makes existing ciphertext unreadable.
+2. **Run the migration** (`aid-migrate`): adds `channel_account`,
+   `conversation.state_json` and outbox fields.
+3. **Link the WhatsApp number** to its organization. Until this is done every
+   inbound event is kept as `ignored` / `unmapped_channel_account` and nothing
+   is answered. Run it as a one-off job or locally against the production
+   database as its owner:
+
+   ```bash
+   python -m scripts.link_channel --phone-number-id "$PHONE_NUMBER_ID" --org "<organization name>"
+   python -m scripts.link_channel --list
+   ```
+4. **Optional: OpenAI extraction** (off by default; amended OPW-023). Only a
+   short typed answer the parser cannot read is sent, redacted, never addresses,
+   names, consent answers or the sender's number. To enable it on the worker:
+   create a secret `openai-api-key`, add `OPENAI_API_KEY=openai-api-key:latest`
+   to the worker's `--set-secrets`, and set `OPENAI_EXTRACTION=true` (optionally
+   `OPENAI_MODEL`). Get the NGO's agreement first: resident text then leaves for
+   a US provider.
+5. **Optional: templates.** Business-initiated messages outside the 24-hour
+   window need Meta-approved templates. Map them with
+   `WHATSAPP_TEMPLATES_JSON='{"report_received": {"name": "...", "language": "es"}}'`.
+   A missing template is a visible terminal failure, never a silent drop.
+6. Other knobs (defaults in `app/config.py`): `URGENT_REFERRAL_TEXT` (D15
+   referral content, set per deployment), `WHATSAPP_SEND_RATE_PER_SECOND`,
+   `SURGE_LAG_SECONDS`, `UNCERTAIN_SEND_RECONCILE_MINUTES`,
+   `CONVERSATION_RESUME_HOURS`.
+
+Rows still `queued` in the old step-1 `outbound_message` table are no longer
+sent (they would be outside the 24-hour window by now anyway).
 
 ---
 

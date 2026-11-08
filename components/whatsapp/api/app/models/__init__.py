@@ -16,6 +16,7 @@ from app.models.intake import Assessment, LegacyObservation  # noqa: F401
 from app.models.case import CaseRecord, LegacyNeed  # noqa: F401
 
 from app.models.outbox import OutboundMessage  # noqa: F401  (WhatsApp step-1 outbox)
+from app.models.channel import ChannelAccount  # noqa: F401  (phone_number_id -> org)
 
 # Pilot model.
 from app.models.privacy import PolicyVersion, PrivacyProfileVersion  # noqa: F401

@@ -19,6 +19,8 @@ PREVIOUS = "1eb5e1be9f8b"
 UNSECURED = {
     "organization_membership", "idempotency_key", "household", "person", "household_member",
     "assessment", "legacy_observation", "case_record", "legacy_need",
+    # Pre-tenant routing lookup (phone_number_id -> org); SELECT-only for runtime roles.
+    "channel_account",
 }
 
 

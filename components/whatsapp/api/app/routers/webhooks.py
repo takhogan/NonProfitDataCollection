@@ -80,7 +80,11 @@ def _route_payload(payload: dict) -> tuple[str, str | None, str | None]:
             provider_message_id = value["messages"][0].get("id")
         elif value.get("statuses"):
             event_type = "status"
-            provider_message_id = value["statuses"][0].get("id")
+            # sent, delivered and read share one wamid: key on (wamid, status)
+            # so a later status is not dropped as a replay of an earlier one.
+            st = value["statuses"][0]
+            if st.get("id"):
+                provider_message_id = f"{st['id']}:{st.get('status', '')}"[:128]
     except (KeyError, IndexError, TypeError):
         pass
     return event_type, channel_account_id, provider_message_id
