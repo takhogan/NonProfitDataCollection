@@ -13,36 +13,11 @@ import uuid
 import pytest
 from sqlalchemy import text
 
-from dash.deps import get_db
-from dash.main import app
-from dash.shared_db import get_engine, get_sessionmaker
+from dash.shared_db import get_engine
 
 pytestmark = pytest.mark.skipif(
     get_engine().dialect.name != "postgresql", reason="RLS needs PostgreSQL"
 )
-
-
-@pytest.fixture()
-def rls_client(client):
-    """TestClient whose DB sessions run as csl_runtime (RLS enforced)."""
-
-    def _db():
-        db = get_sessionmaker()()
-        db.connection().exec_driver_sql("SET ROLE csl_runtime")
-        db.commit()  # session-level SET ROLE survives the commit
-        try:
-            yield db
-        finally:
-            db.rollback()
-            db.connection().exec_driver_sql("RESET ROLE")
-            db.commit()
-            db.close()
-
-    app.dependency_overrides[get_db] = _db
-    try:
-        yield client
-    finally:
-        app.dependency_overrides.pop(get_db, None)
 
 
 @pytest.fixture()

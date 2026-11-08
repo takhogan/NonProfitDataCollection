@@ -14,8 +14,8 @@ import os
 import sys
 from pathlib import Path
 
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy import create_engine, event, text
+from sqlalchemy.orm import Session, sessionmaker
 
 from dash.config import get_settings
 
@@ -60,7 +60,54 @@ def get_sessionmaker():
     if _SessionLocal is None:
         _SessionLocal = sessionmaker(bind=get_engine(), autoflush=False,
                                      expire_on_commit=False, future=True)
+        event.listen(_SessionLocal, "after_begin", _apply_tenant_on_begin)
     return _SessionLocal
+
+
+# ---- RLS tenant context ------------------------------------------------------
+# The pilot tables have FORCE ROW LEVEL SECURITY keyed on transaction-local
+# settings (migration 2a7c4e91d3b0): app.org_id, plus app.role / app.actor_id
+# (membership id) for the staff-only policies. A non-superuser login sees no
+# rows and cannot insert without them. They reset at every COMMIT, so the
+# tenant is kept in session.info and re-applied at the start of each transaction.
+
+_TENANT_SQL = text(
+    "SELECT set_config('app.org_id', :org, true),"
+    " set_config('app.role', :role, true),"
+    " set_config('app.actor_id', :actor, true)"
+)
+
+
+def _apply(conn, tenant: dict) -> None:
+    if conn.dialect.name != "postgresql":
+        return
+    conn.execute(_TENANT_SQL, {"org": tenant.get("org_id") or "",
+                               "role": tenant.get("role") or "",
+                               "actor": tenant.get("actor_id") or ""})
+
+
+def _apply_tenant_on_begin(session: Session, transaction, connection) -> None:
+    tenant = session.info.get("tenant")
+    if tenant:
+        _apply(connection, tenant)
+
+
+def set_tenant(db: Session, org_id: str, *, role: str | None = None,
+               actor_id: str | None = None) -> None:
+    """Scope this session to one org for RLS, now and for later transactions.
+
+    role / actor_id are kept from an earlier call when not given.
+    """
+    prev = db.info.get("tenant") or {}
+    tenant = {"org_id": str(org_id),
+              "role": role if role is not None else prev.get("role"),
+              "actor_id": actor_id if actor_id is not None else prev.get("actor_id")}
+    if prev.get("org_id") not in (None, tenant["org_id"]):
+        tenant["role"] = role
+        tenant["actor_id"] = actor_id
+    db.info["tenant"] = tenant
+    if db.in_transaction():
+        _apply(db.connection(), tenant)
 
 
 def session_scope():
