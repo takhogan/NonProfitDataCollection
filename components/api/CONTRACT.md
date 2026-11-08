@@ -281,7 +281,8 @@ Poll with the returned `cursor` as `?since=`.
   }
 ]
 ```
-`status` ∈ `draft | confirmed | review | superseded | withdrawn`.
+`status` ∈ `draft | confirmed | superseded | withdrawn | abandoned` (matches the
+shared DB's report status enum).
 `reporter_name`/`reporter_phone` reflect the data-protection preset (shown here
 under `standard` = full records; `protected` → `null` name and `•••••00` phone).
 
@@ -306,7 +307,7 @@ under `standard` = full records; `protected` → `null` name and `••••�
 ```
 
 ### PATCH `/reports/{id}`
-Request (all fields optional): `{"status": "review", "notes": "Called back", "assignee": "user-2"}`.
+Request (all fields optional): `{"status": "withdrawn", "notes": "Called back", "assignee": "user-2"}`.
 Returns the updated `ReportDetail`.
 
 ---

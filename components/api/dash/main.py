@@ -9,8 +9,8 @@ from __future__ import annotations
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.config import get_settings
-from app.errors import register_error_handlers
+from dash.config import get_settings
+from dash.errors import register_error_handlers
 
 
 def create_app() -> FastAPI:
@@ -35,7 +35,7 @@ def create_app() -> FastAPI:
     def health() -> dict:
         return {"status": "ok"}
 
-    from app.routers import auth_org, dashboard
+    from dash.routers import auth_org, dashboard
     app.include_router(auth_org.router)
     app.include_router(dashboard.router)
     return app

@@ -189,7 +189,8 @@ class FeedResponse(BaseModel):
 
 # ---- Reports (report-centric; replaces cases) ------------------------------
 
-ReportStatus = Literal["draft", "confirmed", "review", "superseded", "withdrawn"]
+# Matches the DB report status enum (ck_report_status).
+ReportStatus = Literal["draft", "confirmed", "superseded", "withdrawn", "abandoned"]
 
 
 class ReportSummary(BaseModel):

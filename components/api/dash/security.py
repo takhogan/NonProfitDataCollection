@@ -8,7 +8,7 @@ from datetime import datetime, timedelta, timezone
 
 from jose import JWTError, jwt
 
-from app.config import get_settings
+from dash.config import get_settings
 
 
 def create_access_token(subject: str) -> str:

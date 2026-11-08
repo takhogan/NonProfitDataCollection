@@ -1,60 +1,73 @@
-# Dashboard API — run & implementation notes
+# Dashboard API
 
-This is the running **dashboard** service for the web frontend. It reads the
-shared database written by [`whatsapp/api`](../whatsapp/api/README.md) and manages
-org settings. Report-centric (cases are deferred in the pilot, per
-[README.md](README.md)).
+FastAPI service that powers the web dashboard. It **reads the shared database
+written by `whatsapp/api`** (reports, orgs, needs, observations) and manages
+org-level dashboard settings. It creates **no tables and runs no migrations** —
+it reuses whatsapp/api's SQLAlchemy models via a runtime bridge
+([`dash/shared_db.py`](dash/shared_db.py)).
 
-> The planning doc for this component is [README.md](README.md) +
-> [REQUIREMENTS.md](REQUIREMENTS.md). **The frontend contract is
-> [CONTRACT.md](CONTRACT.md)** (every endpoint + example responses).
-
-## Status
-
-**Step 1 (contract-first) — done.** All routes return realistic fake data; shapes
-are stable. **Step 2** swaps fake data for real queries against the shared DB (no
-new tables/migrations — it imports `whatsapp/api`'s SQLAlchemy models).
+- Package: `dash` (named to avoid colliding with whatsapp/api's `app` package).
+- Auth: JWT bearer, **same scheme and shared `JWT_SECRET`** as whatsapp/api, so a
+  token from either service works on both. Org always comes from the token's
+  membership — never the request body.
+- Data model: **report-centric** (cases are deferred in the pilot).
+- Contract: [CONTRACT.md](CONTRACT.md) + checked-in [openapi.json](openapi.json).
 
 ## Run locally
 
 ```bash
 cd components/api
-python3 -m venv .venv
-.venv/bin/python -m pip install -e ".[dev]"
-.venv/bin/uvicorn app.main:app --reload --port 8001
+python3 -m venv .venv && .venv/bin/python -m pip install -e ".[dev]"
+
+# Point at the shared DB and make sure its schema is migrated (run once, from
+# whatsapp/api, if you haven't):
+#   (cd ../whatsapp/api && .venv/bin/alembic upgrade head)
+
+export DATABASE_URL="sqlite:///../whatsapp/api/local-data/aid.sqlite3"
+
+# Seed ~80 Miami reports (12 urgent) for a full-looking demo:
+.venv/bin/python -m scripts.seed_miami
+
+.venv/bin/uvicorn dash.main:app --reload --port 8001
 ```
 
-- Docs: http://localhost:8001/docs · OpenAPI: `/openapi.json` (checked in as
-  [openapi.json](openapi.json))
-- Health: http://localhost:8001/health
+- Docs: http://127.0.0.1:8001/docs
 - Demo login: `demo@metron.org` / `demo-pass`
 
+## Tests
+
 ```bash
-TOKEN=$(curl -s localhost:8001/auth/login -H 'content-type: application/json' \
-  -d '{"email":"demo@metron.org","password":"demo-pass"}' \
-  | python3 -c 'import sys,json;print(json.load(sys.stdin)["access_token"])')
-curl -s localhost:8001/dashboard/summary -H "authorization: Bearer $TOKEN"
+export DATABASE_URL="sqlite:///../whatsapp/api/local-data/aid.sqlite3"
+.venv/bin/python -m pytest
 ```
 
-## Design rules enforced
+## Deploy (Cloud Run)
 
-- **Org from the JWT membership**, never the request body; every query org-scoped.
-- **Data protection enforced in the API**: `/org/data-protection` settings mask
-  phones, omit names, and drop precise location *before* serialization, so the UI
-  cannot leak them. (Verified: flipping the preset changes `/reports` and
-  `/contacts` output.)
-- **Same JWT scheme as `whatsapp/api`** (`JWT_SECRET` must match).
-- **CORS** restricted to `WEB_ORIGINS`.
+Same project / DB / secrets as whatsapp/api. The image bundles both trees, so it
+builds with the context at `components/`:
 
-## Config (env / `.env`)
+```bash
+cd components/api
+./deploy/gcloud-deploy.sh deploy     # build + grant + service + url
+```
 
-| Var | Default | Notes |
-|---|---|---|
-| `DATABASE_URL` | shared SQLite path | Step 2: shared Postgres |
-| `JWT_SECRET` | `change-me-dev-only` | **Must match `whatsapp/api`** |
-| `WEB_ORIGINS` | `http://localhost:5173,http://localhost:3000` | credentialed CORS |
+See [deploy/gcloud-deploy.sh](deploy/gcloud-deploy.sh). It reuses the shared
+`database-url` and `jwt-secret` Secret Manager secrets and the `webhook-run`
+runtime service account.
 
-## No schema conflicts
+## Real vs. mocked (Step 2 status)
 
-This service adds **no tables and no migrations**. It reuses `whatsapp/api`'s
-models (Step 2, by import) and writes only to the fake in-memory store today.
+| Endpoint group | Status |
+|---|---|
+| `auth` (signup/login/me) | **Real** — users/orgs/memberships in the shared DB |
+| `dashboard` summary / areas / feed | **Real** — aggregated from `report` / `observation` / `need` |
+| `reports` list / get / patch | **Real** — report-centric, org-scoped |
+| `org` profile / data-protection / channels / bot-config / dashboard-config | **Real & durable** — stored in `policy_version` (survives restart) |
+| `templates/*` (collection, dashboard, recommended) | **Static** — curated template catalog (by design) |
+| `contacts` list / import | **Mocked** — no contact table in the intake schema yet |
+| `campaigns` | **Mocked** — create/list in memory |
+| `/ask` | **Mocked** — canned NL answer |
+
+Report rows carry **no decryptable PII** (reporter names are encrypted at rest in
+the intake schema and not decoded here), so name/phone come back `null`;
+data-protection masking is demonstrated on `/contacts`.
