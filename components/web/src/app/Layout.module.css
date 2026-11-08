@@ -1,0 +1,99 @@
+.header {
+  background: #12324f;
+  color: #fff;
+  padding: 0.5rem 1rem;
+}
+.headerTop {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+.brand {
+  font-weight: 700;
+  font-size: 1.05rem;
+}
+.context {
+  font-size: 0.85rem;
+  opacity: 0.95;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.15rem 0.75rem;
+  margin-top: 0.25rem;
+}
+.headerActions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+.headerActions button {
+  min-height: 40px;
+  background: transparent;
+  border-color: #fff;
+  color: #fff;
+}
+.headerActions .exit {
+  background: #fff;
+  color: #12324f;
+  font-weight: 700;
+}
+.nav {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  overflow-x: auto;
+}
+.nav ul {
+  display: flex;
+  gap: 0.25rem;
+  margin: 0;
+  padding: 0 0.5rem;
+  list-style: none;
+  white-space: nowrap;
+}
+.nav a {
+  display: inline-block;
+  padding: 0.7rem 0.6rem;
+  text-decoration: none;
+  color: var(--text);
+  border-bottom: 3px solid transparent;
+}
+.nav a[aria-current='page'] {
+  border-bottom-color: var(--accent);
+  font-weight: 600;
+}
+.main {
+  padding: 0.75rem 1rem 6rem;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+.banner {
+  background: var(--warn-bg);
+  color: var(--warn);
+  border-bottom: 1px solid #e5c26b;
+  padding: 0.5rem 1rem;
+  font-size: 0.9rem;
+}
+.banner ul {
+  margin: 0.15rem 0 0;
+  padding-left: 1.2rem;
+}
+.mockTag {
+  background: #ffbf47;
+  color: #1b1f24;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 0.05rem 0.4rem;
+  border-radius: 4px;
+}
+.skip {
+  position: absolute;
+  left: -9999px;
+}
+.skip:focus {
+  left: 0.5rem;
+  top: 0.5rem;
+  background: #fff;
+  padding: 0.5rem;
+  z-index: 10;
+}
