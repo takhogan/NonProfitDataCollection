@@ -255,8 +255,10 @@ curl -s "$API_URL/health"            # {"status":"ok"}
 
 ## 8. Deploy the worker service (same image, different command)
 
-The worker polls the `inbound_event` inbox continuously, so it must keep a
-warm instance and not have its CPU throttled between requests:
+The worker polls the `inbound_event` inbox continuously AND sends outbound
+replies via the WhatsApp Graph API, so it needs `WHATSAPP_ADAPTER=graph` (plus
+the NGO name for the greeting), and it must keep a warm instance whose CPU is not
+throttled between requests:
 
 ```bash
 gcloud run deploy aid-worker \
@@ -267,17 +269,24 @@ gcloud run deploy aid-worker \
   --min-instances=1 \
   --no-cpu-throttling \
   --set-cloudsql-instances="$SQL_CONN" \
-  --set-env-vars=APP_ENV=production \
+  --set-env-vars=APP_ENV=production,WHATSAPP_ADAPTER=graph,PILOT_ORG_NAME="Agua Azul" \
   $SECRET_FLAGS \
   --command=python \
   --args=-m,scripts.worker
 ```
 
 Notes:
+- `WHATSAPP_ADAPTER=graph` switches from the in-memory fake to the real Meta
+  Graph API. The API service does not send, so it can stay on the default.
+- `PILOT_ORG_NAME` is inserted into the canned Spanish greeting
+  (`Somos <name>.`). Set it to the pilot NGO's name.
 - `--min-instances=1` keeps the poller alive (no cold starts dropping the loop).
 - `--no-cpu-throttling` lets the loop run between HTTP requests (the worker has
   no HTTP traffic, so without this its CPU would be throttled to near zero).
 - `--no-allow-unauthenticated`: the worker exposes no public surface.
+
+> **Re-run migrations before deploying this version** — it adds the
+> `outbound_message` table. `gcloud run jobs execute aid-migrate --region=$REGION --wait`.
 
 ---
 
@@ -303,6 +312,13 @@ field so inbound messages and delivery statuses `POST` to the same URL. Each
 event's `X-Hub-Signature-256` is verified against the `APP_SECRET`; accepted
 events are persisted to `inbound_event` before a `200` is returned, and the
 worker processes them asynchronously.
+
+**What the sender sees (Step 1):** text your WhatsApp number and the worker
+replies once with the Spanish greeting
+("Somos <PILOT_ORG_NAME>. Recogemos información sobre cortes de luz y agua…").
+The reply is queued in the `outbound_message` outbox, sent via the Graph API,
+and its delivery status (sent/delivered/read/failed) is reconciled back onto the
+row from subsequent status webhooks. The full AI intake conversation is Step 2.
 
 ---
 

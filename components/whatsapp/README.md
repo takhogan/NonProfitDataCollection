@@ -69,3 +69,13 @@ The fake adapter captures outbound messages and simulates success, rate limits,
 timeouts, duplicate callbacks, and ambiguous sends. Follow with a live adapter in a
 controlled test account. Verify account mapping, signature rejection, timeout handling,
 redacted logs, message-window enforcement, and opt-out suppression before pilot use.
+
+## Current implementation (Step 1)
+
+The send adapter lives in [api/app/whatsapp/](api/app/whatsapp/):
+`GraphApiAdapter` (real Meta Graph API via httpx) and `FakeAdapter` (in-memory,
+no network — used by local dev and tests), behind a shared `WhatsAppAdapter`
+protocol. `WHATSAPP_ADAPTER=fake|graph` selects which one `get_adapter()`
+returns. Step 1 replies to any inbound text with the plan's canned Spanish
+greeting, queued through the `outbound_message` transactional outbox and sent by
+the worker; delivery-status webhooks reconcile onto the outbox row.
