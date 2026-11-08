@@ -135,7 +135,7 @@ const STR = {
   'auth.signupBtn': { es: 'Crear organización', en: 'Create organization' },
   'auth.toSignup': { es: '¿No tiene cuenta? Registre su organización', en: "Don't have an account? Register your organization" },
   'auth.toLogin': { es: '¿Ya tiene cuenta? Inicie sesión', en: 'Already have an account? Log in' },
-  'auth.demoHint': { es: 'Demo: demo@metron.org / demo-pass', en: 'Demo: demo@metron.org / demo-pass' },
+  'auth.demoHint': { es: 'Demo:', en: 'Demo:' },
 
   // Org types
   'orgType.NGO': { es: 'ONG', en: 'NGO' },

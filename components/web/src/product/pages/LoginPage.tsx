@@ -7,6 +7,12 @@ import { useT } from '../i18n';
 import { errorText } from '../components/errors';
 import { AuthFrame } from './AuthFrame';
 import s from './Auth.module.css';
+import { DEMO_EMAIL, DEMO_PASSWORD } from '../../api/product/mockData';
+
+// Demo login shown on the page. The deployed build sets these (Dockerfile) to the
+// seeded demo organization; local mock and dev keep the mock demo user.
+const LOGIN_EMAIL = import.meta.env.VITE_DEMO_EMAIL || DEMO_EMAIL;
+const LOGIN_PASSWORD = import.meta.env.VITE_DEMO_PASSWORD || DEMO_PASSWORD;
 
 export default function LoginPage() {
   const t = useT();
@@ -14,8 +20,8 @@ export default function LoginPage() {
   const api = useProductApi();
   const qc = useQueryClient();
   const navigate = useNavigate();
-  const [email, setEmail] = useState('demo@metron.org');
-  const [password, setPassword] = useState('demo-pass');
+  const [email, setEmail] = useState(LOGIN_EMAIL);
+  const [password, setPassword] = useState(LOGIN_PASSWORD);
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -50,7 +56,7 @@ export default function LoginPage() {
           {busy ? t('common.loading') : t('auth.loginBtn')}
         </button>
       </form>
-      <p className={s.demo}>{t('auth.demoHint')}</p>
+      <p className={s.demo}>{t('auth.demoHint')} {LOGIN_EMAIL} / {LOGIN_PASSWORD}</p>
       <p className={s.alt}>
         <Link to="/signup">{t('auth.toSignup')}</Link>
       </p>

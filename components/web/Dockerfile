@@ -16,6 +16,14 @@ ARG VITE_API_MODE=http
 ARG VITE_API_BASE_URL=https://metron-api-846191018592.us-east4.run.app
 ENV VITE_API_MODE=$VITE_API_MODE
 ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
+# Demo login pre-filled on the live login page: the seeded "Agua Azul (demo,
+# standard)" coordinator (whatsapp/api scripts/seed.py; password is the
+# seed-demo-password secret). Public on purpose, for demos: anyone can sign in
+# to that production org. Clear these before real resident data goes there.
+ARG VITE_DEMO_EMAIL=ana@aguazul.org
+ARG VITE_DEMO_PASSWORD=781a9c099ba72c79c242617ec17d7019656838219fe73333
+ENV VITE_DEMO_EMAIL=$VITE_DEMO_EMAIL
+ENV VITE_DEMO_PASSWORD=$VITE_DEMO_PASSWORD
 
 COPY . .
 RUN npm run build
