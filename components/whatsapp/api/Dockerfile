@@ -15,13 +15,9 @@ WORKDIR /app
 COPY pyproject.toml ./
 # Create a throwaway package layout so pip can resolve the project before the
 # real source is copied, then install dependencies only.
+# (No RUN heredoc: Cloud Build's default legacy builder doesn't support it.)
 RUN python -m pip install --upgrade pip \
-    && python - <<'PY'
-import tomllib, subprocess
-with open("pyproject.toml", "rb") as f:
-    deps = tomllib.load(f)["project"]["dependencies"]
-subprocess.check_call(["pip", "install", *deps])
-PY
+    && python -c 'import tomllib, subprocess; deps = tomllib.load(open("pyproject.toml", "rb"))["project"]["dependencies"]; subprocess.check_call(["pip", "install", *deps])'
 
 # Now copy the application source and install the package itself (no deps).
 COPY app ./app
@@ -44,4 +40,7 @@ EXPOSE 8080
 # Default command: the API. Cloud Run sets $PORT (defaults to 8080 here). The
 # worker service overrides this with:  python -m scripts.worker
 # Using shell form so $PORT expands at runtime.
-CMD exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT}
+# --no-access-log: uvicorn access lines include the full query string, which on
+# the webhook handshake contains hub.verify_token. Cloud Run's request log
+# already records method/path/status/latency.
+CMD exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT} --no-access-log
