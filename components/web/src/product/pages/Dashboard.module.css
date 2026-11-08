@@ -1,0 +1,240 @@
+.topbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 1.75rem;
+}
+.title {
+  margin: 0 0 0.35rem;
+}
+.subline {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+.subDot {
+  color: var(--muted-2);
+}
+
+/* AI summary — the single serif accent, no gradient/box-in-box */
+.summary {
+  padding: 0;
+}
+.summaryMeta {
+  margin: 0 0 0.5rem;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+.summaryText {
+  font-family: var(--font-serif);
+  font-size: 1.55rem;
+  line-height: 1.32;
+  letter-spacing: -0.012em;
+  margin: 0;
+  color: var(--text);
+  max-width: 40ch;
+}
+
+/* Metric cards — flat, hairline, big number */
+.metric {
+  background: var(--card);
+  border: 0.5px solid var(--hairline);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-soft);
+  padding: 1.1rem 1.2rem 1.2rem;
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: 1.6fr 1fr;
+  gap: 2.5rem;
+  align-items: start;
+  margin-top: 2.5rem;
+}
+@media (max-width: 920px) {
+  .layout {
+    grid-template-columns: 1fr;
+    gap: 2rem;
+  }
+}
+.col {
+  display: flex;
+  flex-direction: column;
+  gap: 2.25rem;
+  min-width: 0;
+}
+
+.sectionHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+.sectionHead h2,
+.col section > h2 {
+  margin: 0 0 0.75rem;
+  font-size: 1.15rem;
+}
+
+/* Lists use dividers, not nested cards */
+.list {
+  border-top: 0.5px solid var(--hairline);
+}
+
+/* Area breakdown */
+.areaRow {
+  padding: 0.85rem 0;
+  border-bottom: 0.5px solid var(--hairline);
+}
+.areaTop {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+.areaName {
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+.areaCount {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+.areaBarWrap {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--surface);
+  overflow: hidden;
+  display: flex;
+}
+.areaBar {
+  height: 100%;
+}
+.barPower {
+  background: var(--accent);
+}
+.barWater {
+  background: #9fb8d8;
+}
+.areaMeta {
+  display: flex;
+  gap: 1rem;
+  margin-top: 0.4rem;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+/* Feed — calm cards with hairline, quick fade-in for new items */
+.feed {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  max-height: 480px;
+  overflow-y: auto;
+}
+.msg {
+  display: block;
+  border: 0.5px solid var(--hairline);
+  border-radius: var(--radius-sm);
+  padding: 0.7rem 0.8rem;
+  background: var(--card);
+  text-decoration: none;
+  color: inherit;
+  transition: background 0.15s ease;
+}
+a.msg:hover {
+  background: var(--surface);
+  text-decoration: none;
+}
+.msgNew {
+  animation: fadein 0.25s ease-out;
+}
+@keyframes fadein {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .msgNew {
+    animation: none;
+  }
+}
+.msgTop {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  font-size: 0.8rem;
+  color: var(--muted);
+  margin-bottom: 0.3rem;
+}
+.msgText {
+  margin: 0 0 0.45rem;
+  line-height: 1.45;
+  font-size: 0.95rem;
+}
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+.chanTag {
+  text-transform: capitalize;
+}
+
+/* Urgent queue */
+.urgentItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.75rem 0;
+  border-bottom: 0.5px solid var(--hairline);
+  text-decoration: none;
+  color: var(--text);
+  transition: opacity 0.15s ease;
+}
+.urgentItem:hover {
+  text-decoration: none;
+  opacity: 0.7;
+}
+.urgentBody {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+.urgentArea {
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+.urgentTags {
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+/* Ask box */
+.askForm {
+  display: flex;
+  gap: 0.5rem;
+}
+.askForm input {
+  flex: 1;
+}
+.askAnswer {
+  margin-top: 0.85rem;
+  background: var(--surface);
+  border-radius: var(--radius-sm);
+  padding: 0.8rem 0.9rem;
+  line-height: 1.5;
+  font-size: 0.95rem;
+}

@@ -1,5 +1,55 @@
 # Web application
 
+> **Metron hackathon product.** This app is the Metron product UI — a nonprofit
+> launches an AI agent that talks to its community over WhatsApp and turns the
+> conversations into structured data and a live dashboard. It is built against the
+> **Dashboard API** (`components/api/CONTRACT.md`). The sections below the divider
+> describe the earlier provider-portal; those pages still exist in `src/app` and
+> `src/features` but are no longer mounted (`src/product` is the live app).
+
+## Metron product (current)
+
+```bash
+cd components/web
+npm ci --engine-strict=false      # repo pins Node 24; runs on 23 too
+npm run dev                       # http://localhost:5173 — MOCK data by default
+```
+
+Point it at the real backend (no code change — one env switch):
+
+```bash
+# local FastAPI (uvicorn app.main:app --port 8001)
+VITE_API_MODE=http VITE_API_BASE_URL=http://localhost:8001 npm run dev
+# Cloud Run
+VITE_API_MODE=http VITE_API_BASE_URL=https://<service>.run.app npm run dev
+```
+
+Demo login (mock or live): **demo@metron.org / demo-pass**.
+
+**API layer** (`src/api/product/`):
+- `client.ts` — the `ProductApiClient` interface, one method per contract endpoint.
+- `http.ts` — real client (JWT bearer from `token.ts`).
+- `mock.ts` + `mockData.ts` — in-memory client matching the contract exactly,
+  including **server-side privacy filtering** (masks phones, nulls names) so the UI
+  behaves identically against mock and live. Persists mutable settings to
+  sessionStorage so demos survive a reload.
+- `generated/` — **TypeScript types generated from `../api/openapi.json`**. Regenerate
+  after a contract change: `npm run gen:api`.
+- `queries.ts` — TanStack Query hooks.
+
+**Pages** (`src/product/pages/`): Landing, Login, Signup, Onboarding (org → goal →
+dashboard → data-protection → review), Dashboard, Reports (+ detail), Campaigns,
+Bot editor, Settings.
+
+**Still-needed backend endpoints:** see
+[`BACKEND_ENDPOINTS_NEEDED.md`](./BACKEND_ENDPOINTS_NEEDED.md).
+
+**Known env note:** the repo pins Node ≥24.22; this machine has Node 23. Vite dev +
+`tsc` build work fine; only `npm test` (vitest) fails to start due to an undici/Node-23
+incompatibility. Install Node 24 to run the unit tests.
+
+---
+
 React application with three surfaces: the provider portal (primary), the operating-NGO console, and an optional public dashboard. Mobile-friendly.
 
 ## Running locally
