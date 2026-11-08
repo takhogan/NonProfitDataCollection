@@ -1,4 +1,10 @@
-"""Assessments and observations.
+"""LEGACY household/case intake slice: assessments and observations.
+
+Superseded by the report-centric pilot model in ``app.models.report``
+(``report``, ``observation``, ``need``). Kept so the hackathon API keeps working
+until the api session migrates; the old ``observation`` table was renamed to
+``legacy_observation`` by migration 2a7c4e91d3b0. Do not build new features on it.
+
 
 assessment(id, organization_id, conversation_id?, source_message_id?,
            questionnaire_version_id, reporter_person_id?, household_id?,
@@ -48,13 +54,13 @@ class Assessment(OrgOwned, Base):
     confirmed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     supersedes_assessment_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
 
-    observations: Mapped[list["Observation"]] = relationship(
+    observations: Mapped[list["LegacyObservation"]] = relationship(
         back_populates="assessment", cascade="all, delete-orphan"
     )
 
 
-class Observation(OrgOwned, Base):
-    __tablename__ = "observation"
+class LegacyObservation(OrgOwned, Base):
+    __tablename__ = "legacy_observation"
 
     assessment_id: Mapped[str] = mapped_column(
         ForeignKey("assessment.id"), nullable=False, index=True
@@ -73,3 +79,7 @@ class Observation(OrgOwned, Base):
     supersedes_observation_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
 
     assessment: Mapped[Assessment] = relationship(back_populates="observations")
+
+
+# Backwards-compatible import name for app.domain.intake (legacy).
+Observation = LegacyObservation

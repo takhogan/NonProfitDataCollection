@@ -1,4 +1,9 @@
-"""Cases and needs.
+"""LEGACY cases and needs (household/case slice; DOM-090 deferred module).
+
+Superseded by ``app.models.report.Need`` (table ``need``). The old ``need``
+table was renamed to ``legacy_need`` by migration 2a7c4e91d3b0; ``case_record``
+keeps its name. Kept until the api session migrates off it.
+
 
 case_record(id, organization_id, household_id, campaign_id?, status,
             assigned_membership_id?, opened_at, closed_at?, closure_reason?)
@@ -42,13 +47,13 @@ class CaseRecord(OrgOwned, Base):
     closure_reason: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
     household: Mapped["Household"] = relationship(back_populates="cases")  # noqa: F821
-    needs: Mapped[list["Need"]] = relationship(
+    needs: Mapped[list["LegacyNeed"]] = relationship(
         back_populates="case", cascade="all, delete-orphan"
     )
 
 
-class Need(OrgOwned, Base):
-    __tablename__ = "need"
+class LegacyNeed(OrgOwned, Base):
+    __tablename__ = "legacy_need"
 
     case_id: Mapped[str] = mapped_column(
         ForeignKey("case_record.id"), nullable=False, index=True
@@ -68,3 +73,7 @@ class Need(OrgOwned, Base):
     supersedes_need_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
 
     case: Mapped[CaseRecord] = relationship(back_populates="needs")
+
+
+# Backwards-compatible import name for app.domain.intake (legacy).
+Need = LegacyNeed
