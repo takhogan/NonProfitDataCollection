@@ -1,20 +1,21 @@
 # Cross-language data jobs
 
-Proposed interface between the API, Python data worker, and TypeScript operational
-worker. No endpoints or machine-readable schemas have been implemented yet.
+Proposed interface between the Python backend (API and operational worker) and the
+separate Python data worker. No endpoints or machine-readable schemas have been implemented yet.
 
 ## Ownership and transport
 
-- `contracts` will contain versioned JSON Schema definitions for job requests and
-  results, used to validate both TypeScript and Python models. TypeScript types alone
-  are not the shared wire format.
+- The backend defines job request and result models in Pydantic and exports them as
+  versioned JSON Schemas under `components/contracts/schemas/data-jobs/`. The data
+  worker validates against those files with `jsonschema`. Neither side's internal
+  types alone is the wire format.
 - The API owns an application `data_job` table and validated `data_job_result`
-  records, separate from the operational worker's pg-boss schema.
+  records, separate from the operational worker's job tables.
 - Python uses authenticated internal HTTP endpoints. Authenticate worker identity,
   restrict allowed job types and organizations, and derive scope from that identity
   and the persisted job. Never trust an organization ID in the payload alone.
 - Completion commits the result, job status, and an operational processing intent
-  atomically. A retryable dispatcher schedules evidence ingestion using pg-boss;
+  atomically. A retryable dispatcher schedules evidence ingestion as an operational worker job;
   domain-level operation keys prevent duplicate evidence or review tasks.
 
 ## Lifecycle and planned endpoints

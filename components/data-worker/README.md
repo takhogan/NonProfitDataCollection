@@ -35,8 +35,8 @@ An absent or unusable measurement is unknown, not evidence that services are wor
 
 Use a language-neutral, versioned JSON contract over an internal authenticated API.
 The API persists data jobs and results in application-owned PostgreSQL tables.
-Python claims and acknowledges those jobs via API calls; it never reads pg-boss's
-internal tables and has no direct application database credentials.
+Python claims and acknowledges those jobs via API calls; it never reads the backend's
+job tables and has no direct application database credentials.
 
 See [data job lifecycle and result contract](../contracts/data-jobs.md) for leases,
 retries, idempotency, organization scope, and artifact handling. The API owns durable
@@ -77,7 +77,7 @@ pending job, heartbeat age, runtime, failures, resource usage, and source freshn
   These are planned options, installed per pipeline rather than all required at boot.
 - Standard-library JSON logging, pytest for pipelines/contracts, and Ruff for lint/format.
 - Docker for a repeatable native-library environment; no FastAPI, Celery, Redis,
-  PostgreSQL driver, or pg-boss client is required for the current pull-via-API design.
+  PostgreSQL driver, or job-queue client is required for the current pull-via-API design.
 
 Pin Python and geospatial dependency versions together and verify the image can read
 actual source formats. Add Dask or distributed processing only after measuring a

@@ -4,12 +4,14 @@ Own the authenticated HTTP boundary and compose domain commands with persistence
 
 ## Endpoint groups
 
-- Current user, authorized organization memberships, and staff assignments.
-- Households, contacts, assessments, observations, cases, and needs.
-- Triage, shareable flags, partner organizations, vetting, and scopes.
-- Partner contactable list, watermarked exports, share events, and partner outcomes.
-- Deferred: water/charging fulfillment endpoints (see REQUIREMENTS.md `API-110`).
-- Reviews, dashboard read models, permissions, and later referrals.
+- Current user, memberships, and privacy-profile summary.
+- Reports (assisted intake, browsing), meeting points, and campaigns.
+- Area indicators, areas of need, coverage, area detail, and trends.
+- Providers: organizations, vetting, activities, alerts, API keys, the opt-in contact
+  list, and exports.
+- The public dashboard API (`/public/v1`), with a kill switch.
+- Review, privacy profile and policies, broadcasts, and audit.
+- Deferred: case management (`DOM-090`).
 - WhatsApp inbound message and delivery-status webhooks.
 - Authenticated internal data-job claim, heartbeat, completion, failure, and scoped
   artifact access for the Python worker; see [the job contract](../contracts/data-jobs.md).
@@ -27,7 +29,7 @@ First deliverable: authorized assisted-intake creation and household/case retrie
 
 ## Current implementation
 
-A first working API exists at [`components/whatsapp/api`](../whatsapp/api/README.md). It
+The working API lives at [`components/whatsapp/api`](../whatsapp/api/README.md). It
 covers:
 
 - assisted intake
@@ -36,43 +38,68 @@ covers:
 - `Idempotency-Key` replay
 - the WhatsApp verification handshake and signed inbound-event persistence
 
-It uses **Python 3.11, FastAPI, SQLAlchemy/Alembic, SQLite locally, and JWT login**.
-That differs from the stack proposed below (TypeScript/Fastify, PostgreSQL, Google
-OAuth with server-side sessions). Until that choice is reconciled, this file and
-[REQUIREMENTS.md](REQUIREMENTS.md) describe the intended behavior. The implementation
-README describes how to run what exists today.
+This file and [REQUIREMENTS.md](REQUIREMENTS.md) describe the intended behavior. The
+implementation README describes how to run what exists today.
 
-## Proposed tech stack and deployment
+### Gaps between the implementation and requirements
 
-- TypeScript + Node.js LTS + Fastify, with JSON Schema request/response definitions.
-- Fastify's Ajv validation and explicit response schemas; Pino structured logging.
-- `node-postgres` through the database package for transactional persistence.
-- An OpenID Connect integration for staff sign-in; provider selection is an open
-  operational decision. Use a maintained OIDC client, not handwritten token verification.
-- Vitest and Fastify request injection, with real PostgreSQL for integration tests.
-- Dockerized Render Web Service; one instance initially, colocated with the database.
+| Area | Today | Required |
+|---|---|---|
+| Staff auth | Email + password, JWT bearer token | Google OIDC, with email + password + TOTP backup; server-side sessions in `HttpOnly` cookies; CSRF protection (`API-010`, `API-013`) |
+| Database | SQLite locally, tenant scoping in code | PostgreSQL/PostGIS with row-level security as a second layer (`DB-002`) |
+| Routes | `/orgs/{org_id}/...`, unversioned | `/v1/...` with the org derived from the session membership (`API-001`, `API-011`). Keep the 404-on-other-org behavior, which is already correct. |
+| Error envelope | `{"error": {code, message, details}}` | `{code, message_key, details, request_id}` (`CON-040`) |
+| Idempotency | Stored per (org, endpoint, key) | Also store a request digest, and reject reuse with different input (`DOM-002`) |
+| Data model | Households + cases + needs (`water_delivery` with liters) | Report-centric: reports, needs (`water_drinking`, `water_other`, `charging`), privacy profile, meeting points, reporter keys (`DOM-010`–`034`). Cases are deferred (`DOM-090`). |
+| Water/charging routers | Empty stubs | Remove; fulfillment is out of scope |
+| Indicators, providers, public API, review | Not started | `API-040`–`045`, `API-050`–`064`, `API-070`–`071`, `API-080`–`081` |
 
-Staff authentication and worker authentication are separate. Plan an OIDC authorization
-code flow with server-side session storage and secure HttpOnly cookies. Protect
-mutations against CSRF, validate redirect destinations, and restrict credentialed
-CORS to the configured staff-app origin. For the pilot Python worker, use a rotatable
-service credential mapped to allowed organizations/job types; never reuse a staff cookie.
+## Tech stack and deployment
+
+The stack was decided on 7 November 2026: Python, following the first implementation.
+
+- Python 3.11+, FastAPI, and Pydantic v2 request/response models. The generated
+  OpenAPI document is checked in for web type generation.
+- SQLAlchemy 2.0 sessions (psycopg 3 on PostgreSQL) and Alembic migrations. The domain
+  layer receives an explicit request context and session.
+- Standard-library JSON logging with request IDs, redacted per `API-102`.
+- Google sign-in through a maintained OIDC client (Authlib). Password hashing with
+  Argon2id (`argon2-cffi`), and TOTP with `pyotp`. Never write token verification by
+  hand.
+- pytest with HTTPX `TestClient`. Integration tests run on real PostgreSQL in CI.
+- Docker image served by `uvicorn` (or gunicorn with uvicorn workers) on a Render web
+  service. One instance initially, colocated with the database. The worker runs from
+  the same image.
+
+Staff authentication and worker authentication are separate. Use an OIDC
+authorization code flow with server-side session storage and secure `HttpOnly`
+cookies. Protect mutations against CSRF, validate redirect destinations, and restrict
+credentialed CORS to the configured web origin. Bearer tokens kept in browser storage
+are not acceptable for staff (SEC-07). For the Python data worker, use a rotatable
+service credential mapped to allowed organizations and job types; never reuse a staff
+session.
 
 ## Internal modules
 
-`src/plugins` owns configuration, logging, authentication, database context, and
-error mapping. `src/routes` groups staff API, webhook, and internal-worker routes.
-`src/application` composes domain commands with transactions; `src/read-models`
-contains scoped dashboard and search queries. No business logic belongs in route handlers.
+These modules are inside the backend package (currently `whatsapp/api/app`):
 
-Proposed routes include `POST /v1/assessments`, `GET /v1/cases/:id`,
-`GET /v1/partner/list`, `POST /v1/partner/exports`, and
-`POST /v1/partner/needs/:ref/outcome`. See [REQUIREMENTS.md](REQUIREMENTS.md).
-Internal routes follow the separate data-job protocol. Add cursor pagination,
-bounded date/area filters, request IDs, and a consistent error envelope.
+- `config.py`, `db.py`, `deps.py`, `security.py`, and `errors.py`: configuration,
+  sessions, auth and organization context, and error mapping.
+- `routers/`: one `APIRouter` per endpoint group, plus webhook and internal data-job
+  routers.
+- `domain/`: commands that take `(ctx, session, ...)`.
+- `read_models/` (planned): scoped dashboard, demand, and search queries.
 
-For idempotent mutations, scope the key to actor/organization and operation, store
-a request digest and result, and reject reuse with different input. For editable
+No business logic belongs in route handlers.
+
+Proposed routes include `POST /v1/reports`, `GET /v1/indicators`,
+`GET /v1/areas-of-need`, `GET /v1/coverage`, `POST /v1/activities`,
+`GET /v1/contact-list`, and `GET /public/v1/indicators`. See [REQUIREMENTS.md](REQUIREMENTS.md).
+Internal routes follow the separate data-job protocol. Add cursor pagination, bounded
+date and area filters, request IDs, and a consistent error envelope.
+
+For idempotent mutations, scope the key to the actor, organization, and operation.
+Store a request digest and result, and reject reuse with different input. For editable
 records, use a version field to detect stale writes. A database conflict becomes a
 clear client error rather than silent last-write-wins behavior.
 
@@ -81,6 +108,6 @@ clear client error rather than silent last-write-wins behavior.
 Expose liveness and readiness separately; readiness includes database availability.
 Apply controlled migrations before rollout, then deploy compatible API and workers.
 Test authentication, role checks, cross-tenant IDs, malformed input, concurrent
-exports, partner scope, duplicate commands, and internal credential scope before live collection.
+exports, provider scope, profile enforcement, suppression, duplicate commands, and internal credential scope before live collection.
 
-Reference: [Fastify validation and serialization](https://fastify.dev/docs/latest/Reference/Validation-and-Serialization/).
+Reference: [FastAPI](https://fastapi.tiangolo.com/), [SQLAlchemy 2.0](https://docs.sqlalchemy.org/en/20/).

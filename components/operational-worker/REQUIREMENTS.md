@@ -1,230 +1,201 @@
 # Operational worker requirements
 
-Asynchronous processing: the WhatsApp intake conversation, outbound messaging, status
-updates, evidence ingestion, comparison rules, follow-ups, and retention. Shared context:
-[../REQUIREMENTS.md](../REQUIREMENTS.md).
+Asynchronous processing in the Python backend:
+
+- the WhatsApp reporting conversation
+- outbound messages (refresh prompts, broadcasts)
+- status events
+- indicator refresh and coverage
+- provider alerts
+- external evidence ingestion
+- comparison rules
+- retention
+
+Shared context: [../REQUIREMENTS.md](../REQUIREMENTS.md).
 
 ## Processing guarantees
 
-- **OPW-001 (P0) No lost accepted input.**
-  - Every accepted inbox item is processed to a terminal state: processed, ignored with
-    a reason, or failed and visible to staff.
-  - A dispatcher scan recovers items whose job was lost.
-- **OPW-002 (P0) Idempotent handlers.** Handlers use domain operation keys, so duplicate
-  jobs, retries after commit, and replays create no duplicate assessments, needs,
-  messages, or evidence.
-- **OPW-003 (P0) Per-conversation ordering.**
-  - Messages in one conversation are processed in received order, serialized across
-    replicas (an advisory lock or singleton key per conversation).
-  - Out-of-order provider delivery is reordered by provider timestamp within a short
-    window (default 5 s).
-- **OPW-004 (P0) Retry classification.**
-  - Transient failures retry with exponential backoff (max 8 attempts or 1 hour).
-  - Permanent failures go straight to a failed state with a redacted reason.
-  - Failed items appear in a staff-visible list with replay (`API-064`).
-- **OPW-005 (P0) Tenant context.** Each handler sets the org context from the persisted
-  record, never from job payload alone, and runs under the RLS-bound worker role.
+- **OPW-001 (P0) No lost accepted input.** Every inbox item reaches a terminal state:
+  processed, ignored with a reason, or failed and visible to staff. Pending-record
+  scans recover items whose job was lost.
+- **OPW-002 (P0) Idempotent handlers.** Duplicate jobs, retries after commit, and replays
+  create no duplicate reports, needs, messages, alerts, or evidence.
+- **OPW-003 (P0) Per-conversation ordering.** Messages in a conversation are processed in
+  order, serialized across replicas. Out-of-order provider events are reordered within
+  5 s.
+- **OPW-004 (P0) Retries.** Transient failures back off (max 8 attempts or 1 hour).
+  Permanent failures are terminal, with redacted reasons. Failed items are listed for
+  staff to replay.
+- **OPW-005 (P0) Tenant context.** Org context is loaded from the persisted record, and
+  the worker runs under the RLS-bound worker role.
+- **OPW-006 (P0) Jobs.** Jobs are application-owned PostgreSQL rows, claimed with
+  `FOR UPDATE SKIP LOCKED`, each with a lease, attempt count, and next-run time
+  (decision D19).
 
-## WhatsApp intake conversation
-
-The conversation engine lives in this repo. The production Meta adapter is built by a
-separate contributor against the `WA-001` interface. All tests here run against the
-fake adapter.
+## WhatsApp reporting conversation
 
 The conversation engine runs the questionnaire definition (`CON-030`) as a state
-machine. Spanish copy follows the draft in [PLATFORM_PLAN.md](../../PLATFORM_PLAN.md).
+machine. It lives in this repo. The production Meta adapter comes from the WhatsApp
+contributor, built against `WA-001`. Tests use the fake adapter.
 
 - **OPW-010 (P0) Entry.**
   - The first message (with or without a campaign token) starts or resumes a
     conversation.
-  - The campaign token sets attribution only; it is never treated as identity.
-  - An unknown or expired token falls back to the default campaign.
-- **OPW-011 (P0) Notice and permission.**
-  - The bot introduces itself as **Metron Reporter** (OPW-020), names CSL as the
-    organization responsible for the data, and explains:
-    - what is collected and who sees it
-    - that Metron Reporter does **not** deliver aid itself
-    - that a report does not guarantee help
+  - The token sets attribution only.
+- **OPW-011 (P0) Notice.**
+  - The bot introduces itself as **Metron Reporter**, names the operating NGO as
+    responsible for the data, and explains:
+    - what is collected, and that it is used to show **which areas need help** to
+      organizations that can act
+    - that Metron Reporter does not deliver aid
+    - that reporting does not guarantee help
 
-    It also offers a human.
-  - It records the notice acknowledgement and messaging permission as separate records
-    before any personal questions.
-  - Declining ends the flow politely and keeps no personal data.
-- **OPW-011a (P0) Sharing consent.** After needs are collected, and before the summary,
-  the bot asks separately whether the resident agrees to share their contact and need
-  with organizations that can help in their area. "No" is fully respected:
-  - the need is still recorded
-  - the bot explains that it will not appear on partner lists
-  - the bot explains that CSL staff may follow up directly
-- **OPW-011b (P0) Expectations.** The confirmation message says, in plain Spanish, that:
-  - the request is recorded
-  - with consent, it may be shared with organizations that may help
-  - CSL does not control whether or when they respond
-  - the resident will receive updates and can write `ESTADO` at any time
+    It offers a human.
+  - It records the notice acknowledgement before any personal question.
 - **OPW-012 (P0) Structured questions.**
-  - Questions use WhatsApp interactive buttons/lists where possible (max 3 buttons /
-    10 list rows), with numbered text fallback.
-  - Every question accepts "No sé".
-  - Free text at a choice step is re-asked once, then accepted as a note and flagged
-    for review.
-- **OPW-013 (P0) Area resolution.**
-  - The area is resolved from the parish/sector list, with alias matching on typed
-    text. Ambiguous matches offer up to 3 candidates.
-  - An unresolvable area is stored as text with `precision=unresolved` and creates a
-    location review task.
-  - A shared WhatsApp location is optional, coarsened to the area, and the precise
-    point is handled per SEC-03.
-- **OPW-014 (P0) Pause and resume.**
-  - A conversation resumes at the last unanswered step for up to 48 hours. After that,
-    the resident can start over or keep the previous answers.
-  - "Menú" and "Atrás" commands are available at any step.
-- **OPW-015 (P0) Summary and confirm.**
-  - Shows a short Spanish summary. The resident can confirm, fix a field, or cancel.
-  - Only confirmation creates needs (DOM-011).
-  - The reply includes the reference code and the expected response time for staffed
-    hours.
-- **OPW-016 (P0) Global commands.** Recognized at any step, case- and
-  accent-insensitive:
-  - `AYUDA` / `AGENTE` → human handoff
-  - `BAJA` / `STOP` → opt-out
-  - `CORREGIR` → correction
-  - `BORRAR` → deletion request (DOM-073)
-  - `ESTADO` → status of my requests
-- **OPW-017 (P0) Status inquiry.**
-  - `ESTADO` returns the status of needs linked to *this* contact endpoint only: open,
-    under review, shared with organizations (with the date), or resolved, by reference
-    code.
-  - P1: `DÓNDE` returns directory service points near the resident's area (DOM-043).
-  - It never reveals other households sharing the phone without the reference code.
-- **OPW-018 (P0) Multiple households per phone.** Before linking to an existing
-  household, the bot asks "¿Es para el mismo hogar (CSL-7K3-QF) o para otro?". It never
-  silently attaches the report to the last household.
-- **OPW-019 (P0) Outside staffed hours.** The bot completes the intake and states when
-  staff will review. An urgent flag after hours sends the agreed escalation instructions
-  (D8). The bot is never presented as emergency dispatch.
+  - Buttons and lists where possible, with numbered fallback. "No sé" is always
+    allowed.
+  - Free text at a choice step is re-asked once, then stored as a restricted note and
+    flagged.
+- **OPW-013 (P0) Area and location by profile.**
+  - Area is resolved from the parish/sector list, with alias matching. Ambiguous input
+    offers up to 3 candidates. Unresolvable input becomes a location review task.
+  - `meeting_point` profile: after the sector, the bot offers that sector's meeting
+    points ("¿Cuál punto de encuentro te queda más cerca?"), plus "ninguno cerca".
+  - `address` profile: it asks for an address or landmark, and optionally a shared
+    location.
+  - In protective mode, it never asks for name or address, and a shared GPS location
+    is reduced to the area and the point discarded.
+- **OPW-014 (P0) Report content.** Electricity and piped-water status with times; needs
+  (drinking water, other water, charging) with details; urgency.
+- **OPW-015 (P0) Permissions.** After the needs, the bot asks three separate yes/no
+  questions:
+  1. "¿Podemos escribirte cada pocos días para saber si sigue el problema?" (refresh)
+  2. "¿Quieres recibir avisos de ayuda disponible en tu zona?" (area info)
+  3. "¿Aceptas que organizaciones verificadas que ayudan en tu zona vean tu número
+     para contactarte?" (contact list)
 
-## Identity, abuse, and media
-
-- **OPW-020 (P0) Display identity.**
-  - Bot wording uses the campaign's display identity, by default "Metron Reporter"
-    (D2/SEC-12).
-  - Staff names are never sent to residents.
-  - Partner names are sent only when that partner allows it (DOM-078).
-- **OPW-021 (P0) Flood detection.**
-  - Per-contact limits (e.g., more than 5 new intakes per day) and per-area spikes
-    (more than 3× the trailing baseline within 1 hour) create review tasks and slow the
-    bot's replies.
-  - These detections never deny or delete reports (SEC-11, DOM-065).
-- **OPW-022 (P0) Voice notes and media.**
-  - The pilot default replies that voice notes and images can't be processed
-    automatically and offers buttons or a human.
-  - The media is not downloaded.
-  - P1, pending D13: staff can play back voice notes from restricted storage, with
-    30-day retention.
-- **OPW-023 (P0) Free-text safety.** Free text is stored as a restricted, encrypted note,
-  retained per NFR-09. The worker never sends it to third-party AI services in the
-  pilot.
-- **OPW-025 (P0) Urgent path (D8).** If the resident answers "yes" to the urgent
-  question:
-  - The bot immediately sends the campaign's configured urgent referral content
-    (emergency numbers and partner contacts; D15).
-  - It creates an urgent review task and handoff for staffed hours.
-  - It states that this is not an emergency service and gives no promise of response
-    time.
-  - Outside staffed hours, it states when staff will review.
+  No to all three still records the report.
+- **OPW-016 (P0) Summary and confirm.**
+  - The resident confirms or fixes the summary. Only confirmed reports count
+    (`DOM-011`).
+  - The confirmation says the report helps show where help is needed, and repeats which
+    permissions were given.
+- **OPW-017 (P0) Pause and resume.** A conversation resumes within 48 hours. "Menú" and
+  "Atrás" work at any step.
+- **OPW-018 (P0) Global commands.** Recognized at any step, case- and accent-insensitive:
+  - `AYUDA` → human
+  - `BAJA` → stop all messages
+  - `CORREGIR` → fix the last report
+  - `ACTUALIZAR` → refresh status
+  - `DÓNDE` → active public provider activities near the resident's area
+  - `PERMISOS` → review or withdraw individual permissions
+  - `BORRAR` → deletion request
+- **OPW-019 (P0) Shared phones.** In the `standard` profile with household records, the
+  bot asks which household a repeat report is for. In protective mode, repeat reports
+  update the reporter's own latest report, and the bot says so.
+- **OPW-020 (P0) Display identity.** The bot uses the campaign's display identity. Staff
+  names are never sent. Provider names are sent only if the provider allows it.
+- **OPW-021 (P0) Urgent path (D8).**
+  - A "yes" to urgent sends the configured referral content (D15) immediately.
+  - It creates a coordinator review task for staffed hours.
+  - It states this is not an emergency service.
+- **OPW-022 (P0) Media.** Voice notes and images are not downloaded. The bot explains this
+  and offers buttons or a human. Playback is a P1 decision (D13).
+- **OPW-023 (P0) Free text.** Free text is stored as a restricted, encrypted note per
+  NFR-09, and never sent to third-party AI services.
+- **OPW-024 (P0) Abuse detection.** Per-contact and per-area spikes create review tasks
+  and slow replies. They never delete or exclude reports (`DOM-073`).
 
 ## Outbound messaging
 
-- **OPW-030 (P0) Outbox dispatch.** Committed outbox intents are sent through the
-  WhatsApp adapter after passing the outbound gate (DOM-071). A blocked intent becomes a
-  staff task with the reason.
-- **OPW-031 (P0) Window and templates.** Free-form replies are sent only inside the
-  24-hour customer-service window. Outside it, only approved templates are used for
-  permitted purposes, and a missing template is a terminal, staff-visible failure.
-- **OPW-032 (P0) Uncertain sends.** A timeout after submission is marked `uncertain` and
-  reconciled through status callbacks or a provider lookup before any resend. The
-  worker never blind-resends.
-- **OPW-033 (P0) Operational notices.** Templates (registered by the WhatsApp
-  contributor; D18) exist for:
-  - request received/updated, with the reference code
-  - need shared with organizations (DOM-078)
-  - status update from staff
-  - "do you still need help?" follow-up
-  - "did anyone help you?" outcome check
-  - sharing-consent request
-  - sharing consent withdrawn confirmation (SEC-16)
-- **OPW-034 (P0) Rate limiting.** Outbound sends respect provider throughput and tier
-  limits with a token bucket. Operational notices take priority over follow-ups.
-- **OPW-035 (P0) Surge mode.**
-  - When inbox lag exceeds 2 minutes, the worker sends one holding reply per
-    conversation ("Recibimos tu mensaje, te responderemos pronto") and processes in
-    order (NFR-07).
-  - Holding replies are deduplicated per conversation.
+- **OPW-030 (P0) Outbox dispatch.** Committed intents are sent after the outbound gate
+  (`DOM-061`). Blocked intents are dropped and counted.
+- **OPW-031 (P0) Window and templates.** Free-form only inside the 24-hour window.
+  Otherwise approved templates only. A missing template is a visible terminal failure.
+- **OPW-032 (P0) Uncertain sends.** Timeouts after submission are reconciled, never
+  blindly resent.
+- **OPW-033 (P0) Templates** (registered by the WhatsApp contributor; D18):
+  - report received
+  - refresh prompt
+  - area information broadcast
+  - permission changed confirmation
+  - opt-out confirmation
+- **OPW-034 (P0) Rate limits.** Token bucket per provider tier. Replies to residents take
+  priority over refresh prompts, which take priority over broadcasts.
+- **OPW-035 (P0) Surge mode.** When lag exceeds 2 minutes, the bot sends one holding
+  reply per conversation and processes in order.
 
 ## Status events
 
-- **OPW-040 (P0) Monotonic status.** Delivery statuses (sent → delivered → read, or
-  failed) never regress because an older event arrives late. Duplicate events are
+- **OPW-040 (P0) Monotonic status.** Delivery statuses never regress, and duplicates are
   ignored.
-- **OPW-041 (P0) Failure visibility.** A permanently failed operational notice creates a
-  staff task to contact the household another way.
 
-## Evidence, comparison, and review
+## Indicators, coverage, and alerts
 
-- **OPW-050 (P0) Comparison rules.**
-  - After each confirmed assessment, versioned comparison rules (DOM-061) run against
-    candidate observations in the same/adjacent sector and overlapping time window.
-  - The rules create links and review tasks.
-  - Rules are deterministic, versioned, and replayable.
-- **OPW-051 (P0) External evidence ingestion.** `evidence.ingest` takes an accepted
-  data-job result, validates its scope, stores the area indicator, and links it as
-  context (DOM-064). It creates review tasks only per the configured rules, for example
-  an external indicator that disagrees with an area-level cluster of reports.
-- **OPW-052 (P0) Stale observation sweep.** Hourly, the worker marks observations on open
-  needs as stale when older than the policy age (default 72 hours), and queues a
-  follow-up ("¿Sigue sin agua?") if messaging permission allows.
+- **OPW-045 (P0) Indicator refresh.**
+  - Confirmed reports, review dispositions, expiries, and external evidence mark
+    affected area cells dirty.
+  - A recompute job refreshes them within NFR-06 (5 minutes).
+  - A full rebuild runs nightly and on method-version change.
+- **OPW-046 (P0) Coverage refresh.** Activity changes and indicator changes recompute
+  coverage (`DOM-052`). Activities unconfirmed for 7 days are marked `unconfirmed`.
+- **OPW-047 (P0) Alert evaluation.**
+  - After each refresh, the worker evaluates subscriptions (`DOM-055`).
+  - It sends deduplicated aggregate-only alerts through the configured channel (D26;
+    default email via a transactional email provider).
+  - Alerts contain no personal data.
+- **OPW-048 (P0) Public snapshot.** When the public dashboard is enabled, the worker
+  publishes the public cells (`DOM-080`) on the profile's delay schedule.
 
-## Follow-ups and scheduled jobs
+## Evidence and review
 
-- **OPW-054 (P0) Share notification.** When a need is first included in a partner list
-  view or export, the worker queues the DOM-078 notice once per need. It does not
-  re-notify for later shares.
-- **OPW-055 (P0) Resident follow-up.** This is the main source of outcome data.
-  - On the DOM-037 schedule, and after a partner outcome of `helped` or
-    `could_not_reach`, the worker sends a permitted template with buttons: "¿Recibiste
-    ayuda?" (Sí / En parte / No) and "¿Todavía lo necesitas?" (Sí / No).
-  - Replies record resident outcome facts and refresh, resolve, or reopen needs.
-  - A "No" after a partner-reported `helped` creates a review task, not an accusation.
-- **OPW-056 (P0) Unassigned escalation.** Every 15 minutes during staffed hours, the
-  worker escalates urgent cases unassigned past the threshold (DOM-036).
-- **OPW-057 (P0) Unshared and unanswered sweep.** Daily, the worker flags triaged
-  shareable needs with no partner in scope, and shared needs with no outcome of any kind
-  after the policy period. These go to the coordinator queue.
-- **OPW-058 (P0) Data job scheduling.** The worker creates recurring data jobs, such as
-  the mock Monitor Ciudad pull every 30 minutes for pilot areas, with idempotency keys
-  per window.
+- **OPW-050 (P0) Comparison rules.** After each confirmed report, versioned rules
+  (`DOM-071`) run against compatible observations and create review tasks.
+- **OPW-051 (P0) External evidence ingestion.** Accepted data-job results are stored as
+  area context layers (`DOM-074`). They update confidence labels and may open review
+  tasks.
+- **OPW-052 (P0) Outlier detection.** Cells that change sharply on few reporters are
+  flagged for review, and their confidence is lowered until reviewed.
+
+## Reporter refresh and broadcasts
+
+- **OPW-055 (P0) Refresh prompts.** On the `DOM-062` schedule, the worker sends refresh
+  templates with buttons: "¿Sigue sin luz/agua?" and "¿Todavía necesitas …?". Replies
+  update observations and needs.
+- **OPW-056 (P0) Need lifecycle sweep.** Hourly, the worker moves needs to `stale` or
+  `expired` (`DOM-021`) and marks affected cells dirty.
+- **OPW-057 (P0) Broadcast delivery.** Approved broadcasts (`DOM-063`) are expanded to
+  permitted recipients at send time. Per-reporter weekly limits apply. The final
+  recipient count is recorded.
+- **OPW-058 (P0) Data job scheduling.** Recurring data jobs run with per-window
+  idempotency keys, for example mock Monitor Ciudad every 30 minutes for pilot areas.
 
 ## Retention
 
-- **OPW-060 (P0) Retention job.** Runs daily per org. It applies NFR-09 policies (message
-  content, anonymous endpoints, precise points, closed cases) via `DB-070`/`DB-071`,
-  writes an audit summary, and alerts on failure.
+- **OPW-060 (P0) Retention and profile purges.**
+  - Runs daily per org.
+  - Applies NFR-09 and profile tightening purges (`DOM-032`) via `DB-070`/`DB-071`.
+  - Writes audit counts and alerts on failure.
+  - Rotates pseudonymous reporter keys per the profile.
 
 ## Operations
 
-- **OPW-070 (P0) Graceful shutdown.** On shutdown the worker stops claiming jobs,
-  finishes in-flight work within 30 s, and leaves the rest safe to retry.
-- **OPW-071 (P0) Telemetry.** Heartbeat, queue depth and oldest age per job type,
-  processing time, retries, failures, outbox age, stuck conversations (no progress for
-  more than 10 minutes while waiting on the system), and send failures by error class.
+- **OPW-070 (P0) Graceful shutdown.** On SIGTERM: stop claiming, finish within 30 s, and
+  leave the rest safe to retry.
+- **OPW-071 (P0) Telemetry.**
+  - Heartbeat; job depth and oldest age per type; processing time; retries and
+    failures; outbox age.
+  - Stuck conversations, indicator staleness, and alert send failures.
 - **OPW-072 (P0) Acceptance scenarios.**
-  - Restart in the middle of an intake.
-  - A crash after commit but before the job is acknowledged.
+  - Restart mid-intake.
+  - A crash after commit.
   - A duplicate webhook.
   - Out-of-order messages.
-  - An interrupted outbound send.
+  - An interrupted send.
   - Retries exhausted.
-  - A post-blackout surge of 10× the normal rate.
+  - A 10× surge.
+  - A profile tightening in the middle of a run.
 
-  None may lose an accepted report, duplicate a need or follow-up, send a message
-  without permission, cross tenants, or fail silently.
+  None may lose a report, double-count a reporter in a cell, send without permission,
+  cross tenants, leak personal data in alerts, or fail silently.

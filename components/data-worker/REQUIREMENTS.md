@@ -9,10 +9,10 @@ Source research: [Venezuela aid corroboration sources](../../reports/Venezuela%2
 
 - **DAW-001 (P0) Area-level only.** Inputs are area geometries and time windows. Outputs
   are indicators per area and window. The worker never receives household data, contact
-  data, or precise points (`API-092`).
+  data, or precise points (`API-103`).
 - **DAW-002 (P0) No decisions.** Results are evidence candidates. The worker cannot
-  change cases, needs, review dispositions, or evidence status. The API and the
-  operational worker decide linking (DOM-064).
+  change reports, needs, review dispositions, or evidence status. The API and the
+  operational worker decide linking (`DOM-074`).
 - **DAW-003 (P0) Approved sources only.** Sources are a code-level registry of source
   IDs, each with license, permitted uses, and attribution. Jobs reference source IDs;
   arbitrary URLs in payloads are rejected.
@@ -132,7 +132,7 @@ enough to exercise review and map features end to end.
 - **DAW-071 (P0) Telemetry.** JSON logs with job ID and stage, heartbeat age, runtime,
   bytes downloaded, peak memory, failures by class, and source freshness (age of the
   newest available source data).
-- **DAW-072 (P0) Tests.** Contract fixtures shared with TypeScript, plus pipeline
+- **DAW-072 (P0) Tests.** Contract fixtures shared with the backend (`CON-042`), plus pipeline
   fixtures:
   - an expired lease
   - a duplicate completion

@@ -1,14 +1,16 @@
 # Contracts requirements
 
-Versioned wire formats shared by web, API, workers, and Python. Shared context:
+Versioned wire formats shared by the web app, the Python backend, providers' API clients, and the data worker. Shared context:
 [../REQUIREMENTS.md](../REQUIREMENTS.md).
 
 ## Conventions
 
 - **CON-001 (P0) Source of truth.**
-  - JSON Schema Draft 7 files are checked in.
-  - TypeScript types are generated, and a drift check runs in CI.
-  - Python validates with `jsonschema` against the same files.
+  - Pydantic v2 models in the Python backend are authoritative.
+  - The OpenAPI document and the event and data-job JSON Schemas are exported,
+    checked in, and drift-checked in CI.
+  - The web app generates TypeScript types from the OpenAPI document.
+  - The data worker validates with `jsonschema` against the exported schemas.
 - **CON-002 (P0) Common types.** Shared definitions for:
   - UUID
   - UTC instant
@@ -24,60 +26,71 @@ Versioned wire formats shared by web, API, workers, and Python. Shared context:
   - Schemas reject `0` or `false` as a stand-in for unknown where a tri-state is
     defined.
 - **CON-004 (P0) No sensitive leakage by default.**
-  - Response DTOs exclude contact addresses, names, landmarks, and points unless a
-    `*Sensitive` variant is requested and authorized.
+  - Aggregate, provider, public, and alert models have no personal fields.
+  - Sensitive fields appear only in dedicated staff detail and contact-list models,
+    after authorization and profile filtering (`API-004`).
   - Masked forms are separate fields (`contact_masked`).
-- **CON-005 (P0) Portable subset.** No coercion, no injected defaults, no remote
-  `$ref`, and no runtime-specific regex features.
+- **CON-005 (P0) Strict, portable models.**
+  - Boundary models use strict mode and `extra="forbid"`.
+  - No silent coercion, no injected defaults on external input, no remote `$ref`, and
+    no runtime-specific regex features in exported schemas.
 
 ## API payloads (v1)
 
-- **CON-010 (P0) Intake.**
-  - `AssessmentSubmission`: channel, relationship, area/landmark, observations[],
-    needs[], questionnaire version, operation key.
-  - `AssessmentDraft`: the same fields, all optional, for bot drafts.
-- **CON-011 (P0) Need details.**
-  - Need categories: `water_drinking`, `water_other`, `charging`.
-  - `WaterNeedDetail` (shared by both water categories), and `ChargingNeedDetail`
-    with `ChargingDeviceRequest[]`.
-  - The category determines the required detail.
-- **CON-012 (P0) Case views.** `CaseSummary` (queue row) and `CaseDetail` (needs,
-  timeline, observations, sharing history, outcome facts, review flags).
-- **CON-013 (P0) Sharing.**
-  - `PartnerOrganization`: vetting, scope, responsible contact, flags.
-  - `NeedSharingUpdate`: shareable on/off, with a reason.
-  - `ShareEvent`.
-  - `ExportRequest` and `ExportRecord`: scope, format, row count, watermark ID,
-    expiry.
-- **CON-014 (P0) Partner contactable row.** `PartnerListRow` contains only the D17
-  fields:
-  - reference code, sector, landmark
-  - category, quantity or people, urgency, preferred window
-  - access notes
-  - phone
+- **CON-010 (P0) Reports.**
+  - `ReportSubmission`: channel, relationship, area, `LocationDetail`, observations[],
+    needs[], permissions[], questionnaire version, operation key.
+  - `ReportDraft`: all fields optional.
+  - `LocationDetail` is a discriminated union: `meeting_point` (meeting point ID or
+    `none_nearby`) or `address` (encrypted-at-rest text and an optional point). The API
+    rejects a variant that the org's profile disallows.
+- **CON-011 (P0) Needs.**
+  - Categories: `water_drinking`, `water_other`, `charging`.
+  - `NeedDetail` fields: people affected, quantity `{value, unit}`, remaining supply,
+    stated urgency, access notes, preferred times.
+  - Lifecycle states follow `DOM-021`.
+- **CON-012 (P0) Indicator cells.** `IndicatorCell` contains:
+  - area, level, category or service, bucket
+  - active needs; distinct reporters; distinct households (nullable by profile)
+  - people affected known, and unknown count
+  - urgency mix, supply mix, status mix
+  - freshness
+  - coverage label `none`/`thin`/`reported`
+  - confidence label with reasons
+  - suppressed flag
+  - method version and input watermark
+- **CON-013 (P0) Ranking and coverage.**
+  - `AreaOfNeed`: a cell plus rank and the criteria used.
+  - `CoverageCell`: area × category, `covered`/`uncovered`/`unknown`, plus activity
+    references.
+- **CON-014 (P0) Providers.**
+  - `ProviderOrganization`, `Activity` (type, category, areas, schedule, capacity,
+    public location, visibility, status, last confirmed), `AlertSubscription`, `Alert`
+    (aggregate fields only), and `ApiKey` (metadata only).
+  - The secret appears only once, in `ApiKeyCreated`.
+- **CON-015 (P0) Contact list row.** `ContactListRow` is a discriminated union by profile:
+  - `protective`: alias, sector, meeting point, category, urgency, preferred times,
+    phone
+  - `standard`: name, address, category, urgency, preferred times, phone
 
-  It has no history, notes, or review data. The schema rejects extra properties.
-- **CON-018 (P1) Outcomes and directory.**
-  - `PartnerOutcomeReport` (outcome, optional quantity, operation key).
-  - `ResidentOutcomeReply`.
-  - `ServicePoint` (for the directory).
-- **CON-015 (P0) Review.** `ReviewTask`, `ObservationLink`, `ReviewDisposition`.
-- **CON-016 (P0) Read models.**
-  - `AreaConditionCell`: area, service, bucket, counts by status, distinct
-    households, freshness, unknown share, suppressed flag.
-  - `NeedDemandCell`: area × category, with counts of open needs, households, and
-    people (when known), and urgency mix. Small cells are suppressed.
-  - `BacklogSummary`, kept separate by category.
-- **CON-017 (P0) Admin.** `Membership` (roles, partner organization), `CampaignConfig`
-  (with display identity), and `PolicyVersion`.
+  `extra="forbid"`.
+- **CON-016 (P0) Public models.** `PublicIndicatorCell` (banded counts, status mix,
+  coverage, freshness) and `PublicActivity`. These are separate models and never
+  subclasses of internal ones, so that new internal fields cannot leak.
+- **CON-017 (P0) Review and admin.**
+  - `ReviewTask`, `ReviewDisposition`.
+  - `PrivacyProfile`, with each setting and its platform minimum.
+  - `PolicyVersion`, `Membership`, `CampaignConfig`, `MeetingPoint`, `Broadcast`
+    (template, activity, recipient count).
 
 ## Events and jobs
 
 - **CON-020 (P0) Normalized messaging events.** `InboundMessage` (text, interactive
   reply, location, media placeholder) and `DeliveryStatusEvent`. These are
   provider-neutral, and the provider IDs are preserved.
-- **CON-021 (P0) Internal events.** `IntakeProcessJob`, `MessageSendJob`,
-  `MessageStatusJob`, `EvidenceIngestJob`, `FollowupDueJob`. Each carries only IDs,
+- **CON-021 (P0) Internal jobs.** `IntakeProcessJob`, `MessageSendJob`,
+  `MessageStatusJob`, `EvidenceIngestJob`, `IndicatorRefreshJob`, `AlertEvaluateJob`,
+  `RefreshPromptJob`, `BroadcastJob`, `RetentionJob`. Each carries only IDs,
   organization, operation key, and schema version.
 - **CON-022 (P0) Data jobs.** `DataJobRequest` and `DataJobResult` per
   [data-jobs.md](data-jobs.md), with `indicator_type` values for:
@@ -104,7 +117,7 @@ Versioned wire formats shared by web, API, workers, and Python. Shared context:
     answer-to-field mapping.
   - It is validated against a schema and never executed as code.
 - **CON-031 (P0) Answer schema stability.** Each questionnaire version maps answers to a
-  stable `AssessmentSubmission`, and original answers are preserved.
+  stable `ReportSubmission`, and original answers are preserved.
 
 ## Errors and versioning
 
@@ -115,17 +128,19 @@ Versioned wire formats shared by web, API, workers, and Python. Shared context:
   - `forbidden`
   - `conflict`
   - `stale_version`
-  - `capacity_exceeded`
   - `invalid_transition`
   - `idempotency_conflict`
   - `rate_limited`
   - `unsupported_version`
+  - `profile_violation` (a field the privacy profile disallows)
 - **CON-041 (P0) Versioning.**
   - Endpoints, events, and data jobs carry versions.
   - Adding a required field, or changing a field's meaning, means a new version.
   - Consumers accept the previous version during rollouts.
-- **CON-042 (P0) Shared fixtures.** Valid/invalid fixtures run through Ajv and Python
-  `jsonschema` in CI. They cover unknown vs absent, units, timestamps, extra fields,
+- **CON-042 (P0) Shared fixtures.** Valid/invalid fixtures run through the backend's
+  Pydantic models, and through `jsonschema` against the exported schemas, in CI. Both
+  must agree. They cover unknown vs absent, units, timestamps, extra fields,
   and nested errors.
-- **CON-043 (P0) OpenAPI.** OpenAPI 3.0 docs for staff endpoints are generated from the
-  schemas, with a compatibility check.
+- **CON-043 (P0) OpenAPI.** FastAPI's generated OpenAPI is exported to
+  `components/contracts/openapi.json`. CI fails if it is stale, or if the regenerated
+  web types differ from the committed ones.
