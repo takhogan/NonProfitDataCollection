@@ -2,7 +2,8 @@
 # Deploy the WhatsApp webhook (FastAPI app) to Cloud Run in its own GCP project.
 #
 #   deploy/gcloud-deploy.sh <step>      # run one step
-#   deploy/gcloud-deploy.sh all         # run every step in order
+#   deploy/gcloud-deploy.sh all         # run every step in order (new project)
+#   deploy/gcloud-deploy.sh deploy      # redeploy code: build migrate service url
 #
 # Steps: project apis registry build sql sa secrets migrate service url
 #
@@ -180,13 +181,24 @@ step_url() {
   echo "Webhook URL:  $url/webhooks/whatsapp"
 }
 
+# Redeploy the current commit. Refuses a dirty tree, because the image is
+# tagged with the commit hash and must match what was built.
+step_deploy() {
+  if [[ -n "$(git status --porcelain -- . 2>/dev/null)" ]]; then
+    echo "Uncommitted changes in $(pwd); commit or stash them first." >&2
+    exit 1
+  fi
+  for s in build migrate service url; do echo "== $s"; "step_$s"; done
+}
+
 main() {
   local s="${1:-}"
   case "$s" in
+    deploy) step_deploy ;;
     all) for s in project apis registry build sql sa secrets migrate service url; do
            echo "== $s"; "step_$s"; done ;;
     project|apis|registry|build|sql|sa|secrets|migrate|service|url) "step_$s" ;;
-    *) sed -n '2,16p' "$0"; exit 1 ;;
+    *) sed -n '2,17p' "$0"; exit 1 ;;
   esac
 }
 

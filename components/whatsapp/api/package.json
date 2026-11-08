@@ -1,0 +1,11 @@
+{
+  "name": "aid-coordination-api-deploy",
+  "private": true,
+  "description": "Deploy shortcuts for the WhatsApp webhook on Cloud Run (no JS dependencies). See README 'Deployed webhook'.",
+  "scripts": {
+    "deploy": "./deploy/gcloud-deploy.sh deploy",
+    "deploy:service": "./deploy/gcloud-deploy.sh service",
+    "deploy:verify": "./deploy/verify.sh",
+    "deploy:url": "./deploy/gcloud-deploy.sh url"
+  }
+}

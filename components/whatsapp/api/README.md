@@ -133,12 +133,16 @@ The URL is public because Meta must reach it. Each `POST` is authenticated by it
 `X-Hub-Signature-256` HMAC: a missing or invalid signature returns **401** and
 nothing is stored. Production startup fails if any secret is missing.
 
-Redeploy after code changes (from this directory):
+Redeploy after code changes. Commit first, then run from this directory:
 
 ```bash
-./deploy/gcloud-deploy.sh build && ./deploy/gcloud-deploy.sh migrate && ./deploy/gcloud-deploy.sh service
-./deploy/verify.sh
+npm run deploy          # build image, run migrations, roll out new revision, print URL
+npm run deploy:verify   # synthetic smoke tests
 ```
+
+`npm run deploy:service` only rolls out a new revision, for example after a secret
+changes. `npm run deploy:url` prints the URLs. There are no JS dependencies, so no
+`npm install` is needed.
 
 **Handing over to Meta.** The WhatsApp contributor owns these steps, not this script:
 
