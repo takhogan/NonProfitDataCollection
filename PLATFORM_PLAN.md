@@ -1,83 +1,184 @@
-# Venezuela power and water response platform
+# Venezuela power and water needs data platform
 
-Planning draft · 7 November 2026
+Planning draft · 7 November 2026 · revision 3: data aggregation platform
 
-## Product goal and initial scope
+> **What this is.** This is a **data aggregation platform**, not an aid dispatch
+> platform.
+> - It collects reports of power and water outages and household needs.
+> - It turns them into area-level indicators of need.
+> - It lets **providers** (NGOs, water distributors, charging hosts, relief groups)
+>   log in, see which areas need help, and act with their own resources.
+>
+> The first operating NGO is [Ciudadanía Sin Límites](https://ciudadaniasinlimites.org/about/)
+> (CSL), in metropolitan Caracas. Residents see the service as **Metron Reporter**.
+> Each operating NGO chooses a privacy profile: `protective` (CSL's choice, with no
+> names or addresses and nearby meeting points instead) or `standard`.
+>
+> Sections on per-household case management and NGO-run fulfillment are kept as
+> **deferred design**. Requirements, roles, privacy profiles, and decisions are in
+> [components/REQUIREMENTS.md](components/REQUIREMENTS.md). Where they differ from this
+> plan, the requirements win.
 
-Help one NGO identify households affected by power and water interruptions, understand what they need, assign a response, and confirm whether assistance reached them. Design organization ownership into the database now; enable controlled collaboration between organizations later.
+## Product goal and scope
 
-The product is a needs intake and response system with an outage intelligence layer. It should not treat neighborhood consensus as proof that a household deserves or does not deserve assistance.
+Show, area by area and as current as possible, where people lack electricity, piped
+water, drinking water, or the ability to charge devices. The platform also shows how
+many people are affected, how urgently, how reliable the information is, and which
+areas no provider is serving yet. Providers use this to decide where to act, and log
+what they are doing so others can coordinate around them.
 
-Confirmed assistance scope: **water deliveries and charging access**. A household can request either or both within the same case; each need has its own allocation and completion status. For planning, assume charging is offered at staffed sites; fixed versus mobile sites, supported devices, and appointment versus walk-in operation remain to be confirmed.
+The platform is a reporting and aggregation system with an outage intelligence layer.
+It does not decide who receives aid. It does not treat neighborhood consensus or
+external data as proof that anyone does or does not need help.
 
-Pilot assumptions to validate: one partner NGO, a small set of communities selected with that NGO, Spanish-first intake, volunteers supporting people with limited connectivity, and human responsibility for assistance decisions. No field research or local service-provider integration has been performed for this draft.
+Data collected:
+
+- **Service observations:** `electricity` and `piped_water` status, with when they were
+  observed.
+- **Needs:** `water_drinking`, `water_other`, and `charging`, with people affected,
+  remaining supply, urgency, and access notes.
+- **Provider activity:** who is doing what, where, and when.
+- **External context:** Monitor Ciudad (mocked until a feed exists), and satellite night
+  lights later.
+
+Pilot assumptions to validate:
+
+- a small set of Caracas sectors
+- Spanish-first intake
+- volunteers supporting people with limited connectivity
+- a set of providers willing to log their activity
+
+No field research or provider integration has been performed for this draft.
 
 ## End-to-end workflow
 
-1. **Set up a response campaign.** Choose coverage, service types, intake questions, staff, working hours, escalation contacts, and available assistance. For Venezuela, support state → municipality → parish → community, with local aliases and landmarks rather than requiring a formal street address.
-2. **Invite participation.** Volunteers share an official WhatsApp entry link through permitted outreach. Use an opaque campaign token, not names or phone numbers in the URL. A forwarded link identifies campaign origin, not a verified person or address. Opening the link alone does not submit a report; the person must send a message.
-3. **Explain and ask.** Identify the NGO, explain what information is needed and who may see it, offer a human contact, and explain that submitting a report does not guarantee assistance. Record messaging permission separately from data-processing notice and any optional sharing consent.
-4. **Collect a short assessment.** Ask whether the person is reporting for themselves, their household, or an area. Collect location, power and water status separately, when each was observed, outage onset if known, household size if relevant, remaining drinking water, and requested support. Allow unknown answers, correction, and pause/resume.
-5. **Confirm the summary.** Show a short Spanish summary before submission. Free text and voice can supplement structured options; automated extraction is a draft until confirmed by the reporter or reviewed by staff.
-6. **Create or update a case.** Link the assessment to a household and response case when assistance is requested. Accept area-only observations without forcing creation of a beneficiary profile. Repeat submissions update the timeline rather than silently replacing older observations.
-7. **Triage and review.** Separate urgent needs, routine needs, missing information, potential duplicates, and comparable conflicting observations. High urgency and low evidence confidence may coexist.
-8. **Assign and deliver.** Staff assign a case owner, select available assistance, reserve quantities, record dispatch and delivery, and capture recipient feedback separately from a distributor's delivery claim.
-9. **Follow up.** Ask whether service was restored and whether needs remain. Reopen cases when needed. A new outage is a new episode; historical reports remain linked to their original observation times.
+1. **Set up a campaign.** The operating NGO chooses areas, intake questions, its privacy
+   profile, meeting points per sector, staffed hours, and urgent referral content.
+   Areas follow state → municipality → parish → sector, with local aliases.
+2. **Invite reporting.** Volunteers share a WhatsApp entry link with an opaque campaign
+   token. A forwarded link identifies the campaign, not a person.
+3. **Explain and ask.** The bot identifies itself and the responsible NGO. It explains
+   that reports show organizations where help is needed, that it does not deliver aid,
+   and that reporting does not guarantee help.
+4. **Collect a short report.** Who is reporting (self, household, community), the
+   sector, a location by profile (meeting point or address), electricity and water
+   status with times, needs, and urgency. Unknown answers, correction, and pause/resume
+   are allowed.
+5. **Ask permissions separately.** Refresh prompts, area information broadcasts, and
+   inclusion on vetted providers' contact list are each optional.
+6. **Confirm.** The reporter confirms a short Spanish summary. Only confirmed reports
+   count.
+7. **Aggregate.** Reports update area indicators within minutes:
+   - need and status mix, people affected, urgency, freshness
+   - coverage (reported, thin, or unknown)
+   - a confidence label with reasons
+
+   Small cells are suppressed.
+8. **Quality review.** Reviewers handle duplicates, comparable conflicts, unresolved
+   locations, floods, and outliers. Disagreement never removes a report. Only a human
+   duplicate or spam disposition does.
+9. **Providers act.** Providers see:
+   - areas of greatest need, ranked by declared criteria
+   - a need map and a coverage view of uncovered high-need areas
+   - alerts and exports, and API access
+
+   They log their activity so coverage updates for everyone. Vetted providers may see
+   reporters who opted in to be contacted.
+10. **Keep data fresh.** With permission, the bot asks reporters every few days whether
+    the problem continues. With separate permission, coordinators can broadcast
+    provider activity in their area (for example, a water point opening). Needs go
+    stale and then expire if nobody confirms them.
+11. **Publish safely (optional).** A delayed, coarse public dashboard shows conditions
+    and public provider activity.
 
 ## Suggested first bot conversation
 
-- “Somos [ONG]. Recogemos información sobre cortes de luz y agua para coordinar apoyo. Esto no garantiza ayuda. Puedes pedir hablar con una persona.”
-- “¿Reportas por tu hogar, por otra persona o por tu comunidad?”
-- “¿En qué comunidad estás? Puedes escribir una referencia; compartir ubicación es opcional.”
-- “¿Cómo está la electricidad ahora? Disponible / Sin servicio / Intermitente / No sé.”
-- “¿Cómo está el agua por tubería ahora? Disponible / Sin servicio / Intermitente / No sé.”
-- For each affected service: “¿Desde cuándo? ¿Cuándo lo comprobaste por última vez?” Accept approximate times.
-- “¿Tu hogar tiene agua para beber? Sí / Poca / No / No sé.” If useful, ask for approximate days remaining, explicitly permitting unknown.
-- “¿Cuántas personas necesitan apoyo? ¿Qué apoyo necesitan?”
-- “¿Hay una necesidad urgente que debamos revisar con una persona?” Keep detailed health information out of the default flow; collect only operational accommodation needs through an appropriate reviewed process.
-- Confirm the answers, provide a reference, explain staffed response expectations, and offer correction or human assistance.
+- "Hola, somos Metron Reporter. Recogemos reportes sobre cortes de luz y agua para mostrar a organizaciones dónde se necesita ayuda. No entregamos ayuda directamente y reportar no garantiza ayuda. Los datos los gestiona Ciudadanía Sin Límites. Puedes pedir hablar con una persona."
+- "¿Reportas por tu hogar, por otra persona o por tu comunidad?"
+- "¿En qué sector estás?"
+  - Protective profile: then "¿Cuál de estos puntos de encuentro te queda más cerca?"
+    (list, plus "ninguno cerca").
+  - Standard profile: "¿Dirección o referencia?"
+- "¿Cómo está la electricidad ahora? Disponible / Sin servicio / Intermitente / No sé."
+- "¿Cómo está el agua por tubería ahora? Disponible / Sin servicio / Intermitente / No sé."
+- For each affected service: "¿Desde cuándo? ¿Cuándo lo comprobaste por última vez?"
+  Approximate times are accepted.
+- "¿Tu hogar tiene agua para beber? Sí / Poca / No / No sé."
+- "¿Qué necesitan? Agua para beber / Agua para otros usos / Cargar equipos." Then
+  "¿Para cuántas personas?" or "¿Cuántos equipos?"
+- "¿Hay una necesidad urgente?"
+  - A "yes" sends the agreed emergency and referral contacts immediately, and queues
+    coordinator review.
+  - There is no dispatch promise.
+- Three separate permission questions:
+  - "¿Podemos escribirte cada pocos días para saber si sigue el problema?"
+  - "¿Quieres recibir avisos de ayuda disponible en tu zona?"
+  - "¿Aceptas que organizaciones verificadas que ayudan en tu zona vean tu número para
+    contactarte?"
+- Confirm the summary. Explain that the report helps show where help is needed. Mention
+  `ACTUALIZAR`, `DÓNDE`, `PERMISOS`, and `BAJA`.
 
-Keep the initial path short with branching questions. Do not require photos, identity documents, GPS, a complete roster of household members, or a diagnosis to submit. The bot is not an emergency dispatch service; local escalation instructions must be agreed with the operating NGO before launch.
+Keep the path short. Do not require photos, identity documents, GPS, rosters, or
+diagnoses. The bot is not an emergency service.
 
-## Service-specific intake and fulfillment
+## Need-specific questions
 
-### Water deliveries
+Water: whether the water is for drinking or other use, people to serve, remaining
+supply, whether they have containers, and preferred times. Do not ask the reporter to
+estimate liters, though they may give a number. The platform never infers that water
+is safe to drink.
 
-Ask whether the water is needed for drinking or other household use, how many people need it, approximate remaining supply, desired quantity if known, delivery location/landmark, availability window, and whether containers or help receiving the water are needed. Do not require the household to estimate liters: a caseworker may propose a quantity under an NGO-approved allocation policy and record that basis. Keep requested, approved, allocated, and delivered quantities distinct.
+Charging: device types and counts, whether they have a charger or cable, whether they
+can reach a charging point, and preferred times.
 
-Spanish branch: “¿Necesitas agua para beber, para otros usos o ambas?”; “¿Para cuántas personas?”; “¿Cuánta agua les queda aproximadamente?”; “¿Tienen recipientes para recibirla?”; “¿Dónde y cuándo podrían recibir la entrega?”
+*Deferred fulfillment design:* the coordinator workflows for water delivery runs and
+charging-site slots are kept in the schema section below as reference for `DOM-090`.
 
-Coordinator workflow: review need → reserve suitable water supply → assign delivery run and time window → dispatch → record actual liters and unsuccessful delivery reasons → request recipient confirmation. Record supply suitability and the NGO's release/check reference; the application must not infer that water is safe to drink from appearance or a reporter's assertion. Do not substitute non-drinking supply for a drinking-water allocation.
+## Provider-facing views
 
-A partial delivery leaves the remaining quantity open. Reconcile returned, lost, or undelivered quantities before making stock available again. Repeat requests in a new period are legitimate new demand, not automatically duplicates. Start with manually arranged delivery runs; route optimization can follow later.
+- **Areas of need:** a ranked table by declared criteria (urgent active needs, active
+  needs per reporter, age of oldest unmet need, freshness). The method version is
+  shown. There are no hidden weights.
+- **Need map:** a choropleth by sector or parish and category. Unknown areas are hatched
+  and suppressed areas are marked. No points are drawn.
+- **Coverage:** `covered`/`uncovered`/`unknown` per area × category, from provider
+  activity. Covered means someone is acting, not that needs are met.
+- **Area detail:** trends, service status, provider activity, external context, and
+  data quality.
+- **Activity log, alerts, exports, API keys**, and for vetted providers, the opt-in
+  contact list (fields per privacy profile).
 
-### Charging access
+Never add liters, people, devices, reporters, and households into one total. Every
+number states its unit, time bucket, freshness, coverage, and confidence.
 
-Ask what devices need charging, device count, connector or charger availability, preferred time, whether the person can reach a site, and any assistance needed to access it. Assume phones and power banks for the first design; publish the NGO's actual supported device types before launch. Route unsupported equipment requests to staff rather than promising compatibility.
+## Operating-NGO console
 
-Spanish branch: “¿Qué necesitas cargar y cuántos equipos son?”; “¿Tienes cargador o cable?”; “¿Puedes llegar a un punto de carga?”; “¿En qué horario podrías ir?”
+**Coverage and data health:** sectors with no recent reports, stale indicators, the
+review backlog, uncovered high-need areas, unconfirmed provider activities, and intake
+volume. This tells the NGO where to send outreach and volunteers.
 
-Coordinator workflow: select an operational compatible site → reserve device slots or offer a walk-in queue → provide confirmed location/hours → check in → record actual sessions and whether charging was successful. A proposed site or booking does not fulfill a need. If someone cannot travel, open a follow-up task; do not assume transport or mobile charging is available.
+**Report browser:** masked report detail for coordinators and reviewers. There are no
+household profiles or cases in the pilot.
 
-Site capacity is time-dependent. Operators declare safe simultaneous device capacity and slot duration based on their equipment. Track site status and when it was last checked; when a site loses power or closes, block new bookings and reassign affected reservations. Preserve the original reservation history. Missed appointments trigger contact or rescheduling, not a fraud flag.
+**Review queue:** duplicates, comparable conflicts, uncertain locations, floods,
+outliers, and urgent flags. Reviewers see the evidence, the rule reasons, and the
+effect on aggregates.
 
-### Operational priorities and dashboard
+**Providers:** vetting, scope, activity oversight, sharing history, and API key usage.
 
-Use two visible work queues: **water delivery** and **charging access**, linked by household. For water show unallocated requested liters, unknown-quantity requests, reserved liters, delivery runs, actual liters delivered, partial deliveries, and recipient confirmation. For charging show operational sites, freshness of site checks, capacity by time slot, bookings, waiting households, completed device sessions, and interrupted sessions. Never add liters and charging slots into one quantity total.
+**Privacy profile and public dashboard settings:** with a preview of consequences.
 
-Proposed prioritization inputs are remaining supply, time waiting, stated urgency, and access barriers, with a recorded human decision. The NGO defines allocation quantities and escalation thresholds; this draft does not prescribe water consumption standards. An outage-duration estimate or neighborhood consensus alone must not determine priority.
+**Analytics:**
 
-## Central platform
+- report volume and intake completion
+- coverage and freshness by sector
+- provider engagement (logins, activities, exports, API use)
+- time areas stay uncovered
+- refresh response rates
 
-**Operations dashboard:** recent outage observations by area and service, freshness and coverage, urgent unassigned cases, outstanding need quantities, assignments, and delivery backlog. An area with no reports is unknown, not unaffected. Maps show aggregate areas by default; precise household locations are restricted.
-
-**Household/person CRM:** contact relationships, current location and location history, household membership if needed, assessments, open needs, contact permissions, assigned worker, assistance history, corrections, and complaints. A telephone is a contact endpoint, not a person identifier: phones may be shared or replaced.
-
-**Review queue:** comparable conflicts, uncertain locations, stale observations, possible duplicates, extraction errors, and follow-up tasks. Reviewers see the evidence and reason for each flag.
-
-**Aid coordination:** available resources, case ownership, allocations, partial deliveries, recipient confirmation, unsuccessful delivery reasons, and remaining needs. A dashboard alone does not prevent duplicate dispatch; allocations and assignments must be tracked transactionally.
-
-**Analytics:** invitation-to-intake completion when attribution is available, reporting coverage, age of observations, median and 90th percentile time to first human action, requested versus delivered quantities by unit, unresolved needs, and recipient-confirmed delivery rate. Always separate reports, deduplicated households, estimated people, and deliveries. These submissions are not a representative estimate of the population without a sampling design.
+Always separate reports, distinct reporters, households (standard profile), estimated
+people, and needs. Submissions are not a representative estimate of the population
+without a sampling design.
 
 ## Cross-checking without mistaking disagreement for fraud
 
@@ -119,11 +220,21 @@ outreach_invite(id, organization_id, campaign_id, volunteer_membership_id?,
                 token_hash, contact_endpoint_id?, channel, sent_at?, expires_at?)
 ```
 
-Roles initially: volunteer, caseworker, reviewer, coordinator, organization administrator. Volunteers see only assigned work and the minimum needed contact information. Invitations can be reusable campaign links or individually issued links; neither proves identity.
+Roles: org administrator, coordinator, reviewer, intake volunteer, provider, and analyst, plus a public read-only view. See the [roles table](components/REQUIREMENTS.md#roles). Volunteers see only the reports they entered. Invitations can be reusable campaign links or individually issued links; neither proves identity.
 
 ### Contacts, households, and permissions
 
+The person, household, and location-history records below apply only in the `standard`
+privacy profile, or with the deferred case-management module. In the `protective`
+profile, reports link to a rotating pseudonymous `reporter_key` instead, and location
+is a sector plus a meeting point.
+
 ```text
+privacy_profile_version(id, organization_id, version, settings_json,
+                        notice_version, activated_by_membership_id, activated_at)
+reporter_key(id, organization_id, endpoint_hmac, epoch, created_at, expires_at)
+meeting_point(id, organization_id, area_id, name, kind, public_description,
+              public_point?, status)
 person(id, organization_id, preferred_name?, preferred_language?)
 household(id, organization_id, reference_code, estimated_member_count?,
           current_location_id?)
@@ -182,15 +293,67 @@ Suggested `service_type`: electricity, piped_water. Suggested observation `statu
 
 One assessment can contain several observations and several needs. `source_channel` supports WhatsApp, phone, and volunteer-assisted intake from the start. An observation's time interval expresses uncertainty about when it was observed; it is distinct from the estimated outage onset.
 
-### Cases and delivery
+### Needs, indicators, and providers (pilot)
+
+In the pilot, `assessment` above is called a **report**. It carries
+`privacy_profile_version_id` and `reporter_key_id`, and in the standard profile an
+optional `household_id`.
+
+```text
+need(id, organization_id, assessment_id, category, people_affected?,
+     quantity?, unit?, remaining_supply, stated_urgency, access_notes?,
+     preferred_times?, status, last_confirmed_at, supersedes_need_id?)
+indicator_cell(id, organization_id, area_id, level, subject, bucket, bucket_start,
+               active_needs, distinct_reporters, distinct_households?,
+               people_known, people_unknown_count, urgency_mix, supply_mix,
+               status_mix, freshness_at, coverage_label, confidence_label,
+               confidence_reasons, suppressed, method_version,
+               profile_version_id, input_watermark)
+coverage_cell(id, organization_id, area_id, category, coverage, activity_ids,
+              computed_at)
+provider_organization(id, organization_id, name, vetting_status, scope_json,
+                      responsible_contact_reference, statement_version,
+                      may_disclose_name)
+activity(id, organization_id, provider_organization_id, type, category,
+         schedule_json, capacity?, public_location_ref?, visibility, status,
+         last_confirmed_at)
+activity_area(id, organization_id, activity_id, area_id)
+alert_subscription(id, organization_id, membership_id, area_ids, category,
+                   trigger, threshold?, channel, muted)
+api_key(id, organization_id, membership_id, key_hash, scopes, expires_at,
+        last_used_at?, revoked_at?)
+share_event(id, organization_id, provider_organization_id, actor_ref,
+            reporter_key_id, fields_shared, export_record_id?, occurred_at)
+broadcast(id, organization_id, activity_id, template, approved_by_membership_id,
+          recipient_count, sent_at?)
+public_indicator_cell(...)  -- delayed, coarse snapshot (DOM-080)
+```
+
+- `need.status` is `active`, `stale`, `resolved_by_reporter`, `withdrawn`, or
+  `expired`. No assignment or closure workflow exists in the pilot.
+- `subject` is a need category or a service type.
+- Indicator and coverage cells are derived and recomputed, never edited by hand.
+- The contact list is a derived view: reporters with list consent and an active need
+  in a vetted provider's scope. Each view or export writes `share_event` rows in the
+  same transaction.
+- Needs may remain after service restoration.
+
+### Deferred: case management (DOM-090)
 
 ```text
 case_record(id, organization_id, household_id, campaign_id?, status,
             assigned_membership_id?, opened_at, closed_at?, closure_reason?)
 case_assessment(id, organization_id, case_id, assessment_id)
-need(id, organization_id, case_id, assessment_id, category, requested_quantity?,
-     unit?, period_start?, period_end?, urgency, urgency_reasons,
-     status, last_confirmed_at, supersedes_need_id?)
+case_event(id, organization_id, case_id, event_type, actor_membership_id?,
+           occurred_at, details_json)
+```
+
+### Deferred: NGO-run fulfillment
+
+The records below apply only if an operating NGO or provider later manages fulfillment inside this
+platform. They are kept here as a design reference.
+
+```text
 assistance_decision(id, organization_id, need_id, decision, rationale,
                     policy_version, decided_by_membership_id, decided_at,
                     supersedes_decision_id?)
@@ -201,15 +364,18 @@ allocation(id, organization_id, need_id, resource_offer_id, quantity, unit,
 delivery(id, organization_id, allocation_id, quantity, unit, status,
          dispatched_at?, delivered_at?, recorded_by_membership_id,
          recipient_confirmed_at?, feedback?, failure_reason?)
-case_event(id, organization_id, case_id, event_type, actor_membership_id?,
-           occurred_at, details_json)
 ```
 
-Needs may remain after service restoration. Water needs need units and a time period: “20 liters today” differs from “20 liters daily.” A case can include multiple outage episodes through its assessments. Model partial deliveries explicitly. Do not mark a need fulfilled merely because resources were allocated or dispatched. Count distributor-reported and recipient-confirmed deliveries separately.
+Water needs need units and a time period: “20 liters today” differs from “20 liters daily.” A case can include multiple outage episodes through its assessments. Model partial deliveries explicitly. Do not mark a need fulfilled merely because resources were allocated or dispatched. Count distributor-reported and recipient-confirmed deliveries separately.
 
 ### Water and charging extensions
 
-Keep common case/need/allocation records, with typed service details. In this pilot, `delivery` records physical water deliveries; charging fulfillment uses `charging_session`. Every extension inherits organization ownership and enforced organization-scoped foreign keys.
+`water_need_detail`, `charging_need_detail`, and `charging_device_request` are **pilot**
+records. They hold the need details shown to providers. The remaining extensions
+(supply, runs, stops, sites, slots, bookings, sessions) are **deferred** with the
+fulfillment records above.
+
+Keep common case/need/allocation records, with typed service details. If fulfillment is reinstated, `delivery` records physical water deliveries; charging fulfillment uses `charging_session`. Every extension inherits organization ownership and enforced organization-scoped foreign keys.
 
 ```text
 water_need_detail(need_id PK/FK, intended_use, people_to_serve?,
@@ -243,11 +409,11 @@ charging_session(id, organization_id, charging_booking_id,
                  recipient_confirmed_at?, interruption_reason?)
 ```
 
-Use `need.category = water_delivery` with quantity in liters, or `charging_access` with quantity in device sessions. A charging slot's resource offer uses device sessions and exactly the same availability interval. A device session means one device using one configured slot, not a guaranteed full battery. A booking references its slot through its allocation's resource offer; reject references to any other offer type. A water delivery references its reserved supply through its allocation. Enforce matching need categories, resource types, units, and allocation ownership across these references.
+In this deferred design, water needs (`water_drinking`/`water_other`) are fulfilled in liters and `charging` in device sessions. A charging slot's resource offer uses device sessions and exactly the same availability interval. A device session means one device using one configured slot, not a guaranteed full battery. A booking references its slot through its allocation's resource offer; reject references to any other offer type. A water delivery references its reserved supply through its allocation. Enforce matching need categories, resource types, units, and allocation ownership across these references.
 
 Require one service detail record matching each need category. Sum charging device requests to derive requested sessions for the relevant period; do not count the same device request twice when rebooking. A session interrupted before useful service leaves follow-up outstanding; staff record whether further charging is needed. A household case closes only when all needs have an explicit resolved, withdrawn, or otherwise reviewed disposition.
 
-For the pilot, use non-overlapping slots per charging site. Atomically check active reservations against slot device capacity, and validate capacity against site limits. A walk-in receives a booking before using remaining capacity. Cancellation releases only unused reserved capacity; completed usage remains consumed for that slot. Longer sessions require an explicit extension into available capacity. Prevent open sessions from silently overlapping subsequent bookings beyond the site's simultaneous limit.
+If charging fulfillment is reinstated, use non-overlapping slots per charging site. Atomically check active reservations against slot device capacity, and validate capacity against site limits. A walk-in receives a booking before using remaining capacity. Cancellation releases only unused reserved capacity; completed usage remains consumed for that slot. Longer sessions require an explicit extension into available capacity. Prevent open sessions from silently overlapping subsequent bookings beyond the site's simultaneous limit.
 
 Water allocations cannot exceed released supply; delivery-run planned loads cannot exceed run capacity. Actual delivery quantities are positive and cannot exceed remaining allocation without a recorded adjustment. Apply unique fulfillment operation IDs so an offline retry cannot double-count water delivered or charging sessions. Record staff-reported completion separately from recipient confirmation in both workflows.
 
@@ -286,13 +452,16 @@ Start with aggregate coverage sharing and explicit referrals. Keep original reco
 
 ## Database invariants and implementation choices
 
-- Prefer a relational database with spatial support, such as PostgreSQL with PostGIS, for household/case relationships and geographic queries. This is an architecture proposal, not a verified deployment stack or version selection.
+- Prefer a relational database with spatial support, such as PostgreSQL with PostGIS, for report, area, and indicator relationships and geographic queries. This is an architecture proposal, not a verified deployment stack or version selection.
 - Use organization-scoped composite foreign keys or equivalent enforced constraints on operational relationships, plus row-level access controls and API authorization. A client-supplied organization ID is not authorization.
 - Enforce unique inbound provider message IDs per channel account. Use separate deduplicated delivery-status events; delivery updates can arrive more than once or out of order.
 - Retain assessment and observation revisions. Never overwrite the historical fact that an earlier report was made; controlled deletion/anonymization for retention still applies.
 - Validate nonnegative quantities, matching units, valid time ranges, recognized statuses, and valid relationship scope. Prevent self-links and duplicate observation-pair relations.
-- Lock or transact resource reservations so simultaneous coordinators cannot allocate the same remaining stock. Handle cancelled allocations and partially delivered quantities explicitly.
-- Index organization + case status + assignee, organization + observation time + service, household + open case, provider identifiers, and spatial fields. Derive dashboard views rather than storing a second untraceable set of facts.
+- Read provider contact-list exports from a consistent snapshot, and record their share events in the
+  same transaction.
+- If fulfillment is reinstated, lock or transact resource reservations so simultaneous
+  coordinators cannot allocate the same remaining stock.
+- Index organization + observation time + service, organization + area + need status, indicator cells by area/subject/bucket, provider message identifiers, and spatial fields. Indicator and coverage cells are derived from source tables and can be rebuilt, never a second untraceable set of facts.
 - Store media separately with restricted access and expiry. Encrypt contact details and sensitive location data; manage keys separately. Restrict and audit exports as well as on-screen access.
 
 ## Technical shape
@@ -301,14 +470,15 @@ Start with aggregate coverage sharing and explicit referrals. Keep original reco
 Volunteer invitation → Resident sends WhatsApp message
     → authenticated webhook → durable inbox/queue
     → resumable intake workflow → normalized assessments and observations
-    → case/need creation + comparison rules + human review
-    → assignments, allocations, deliveries, follow-up
-    → aggregate operational dashboard and analytics
+    → confirmed reports + comparison rules + data-quality review
+    → area indicators, coverage, and alerts (suppressed)
+    → provider portal / API / optional public dashboard
+    → provider activity logs → coverage; refresh prompts and area broadcasts
 ```
 
-Use a modular application with background workers initially. Acknowledge webhooks after durable acceptance; retry processing safely, quarantine failures, and allow operators to replay failed jobs. Store outbound messages in a transactional outbox to avoid losing acknowledgements and follow-ups. Monitor failures, queue lag, message delivery, and stuck conversations.
+Use a modular application with two distinct worker components: a Python operational worker (same codebase as the FastAPI API) for intake, messaging, and domain commands, and a separate Python data worker for external-source ingestion and geospatial evidence processing. The operational worker claims jobs from application-owned PostgreSQL tables with `FOR UPDATE SKIP LOCKED`. The data worker claims its own data jobs through a versioned internal API with leases, retries, and idempotent completion, and never reads the job tables or changes aid decisions directly. See [component boundaries](components/README.md) and the [data-job contract](components/contracts/data-jobs.md). Acknowledge webhooks after durable acceptance; retry processing safely, quarantine failures, and allow operators to replay failed jobs. Store outbound messages in a transactional outbox to avoid losing acknowledgements and follow-ups. Monitor failures, queue lag, message delivery, and stuck conversations.
 
-A deterministic conversation flow is sufficient for the pilot. Optional AI can transcribe, translate, or propose structured fields; retain provenance and confirmation. AI should not invent locations, decide that an outage claim is false, or approve/deny aid.
+A deterministic conversation flow is sufficient for the pilot. Optional AI can transcribe, translate, or propose structured fields; retain provenance and confirmation. AI should not invent locations, decide that an outage claim is false, or exclude reports from aggregates.
 
 Power and connectivity disruptions also affect reporting. Include telephone/volunteer-assisted entry and resumable conversations. Record when conditions were observed separately from when delayed messages arrived. Design a field-friendly low-bandwidth interface; full offline synchronization can follow after the pilot establishes the need.
 
@@ -322,18 +492,66 @@ Proposed product safeguards: avoid collecting political affiliation or identity 
 
 ## Delivery plan and pilot acceptance
 
-**Stage 1 — operational design.** Interview NGO coordinators, volunteers, and participating households. Agree coverage, service definitions, available aid, response hours, escalation owners, required permissions, and success measures. Test Spanish wording and whether participants distinguish piped-water availability from drinking-water need.
+**Stage 1 — operational design.** Interview CSL coordinators, volunteers, prospective
+providers, and residents.
+- Agree on sectors, meeting points, the privacy profile, urgent referral content,
+  provider vetting, whether to enable the public dashboard, and success measures.
+- Test the Spanish wording, including whether residents distinguish piped-water
+  availability from drinking-water need.
+- Ask providers which views, alerts, and exports they would actually use.
 
-**Stage 2 — intake and CRM.** Implement outreach attribution, WhatsApp ingestion, short structured intake, human handoff, household/case records, contact permissions, and assisted entry. Gate: complete an intake, resume after interruption, correct it, and retrieve it without duplicate creation after webhook replay.
+**Stage 2 — reporting.** Implement assisted intake, the WhatsApp bot with
+profile-dependent location and permissions, campaign attribution, and webhook ingestion.
 
-**Stage 3 — response operations.** Implement needs, assignments, resource offers, allocations, partial deliveries, and recipient feedback. Gate: a simulated request can be tracked through delivery; concurrent allocations cannot exceed availability; service restoration does not silently close unresolved needs.
+Gates:
+- A report can be completed, resumed after interruption, and corrected.
+- A replayed webhook creates no duplicate.
+- Protective mode stores no name, address, or GPS.
 
-Service-specific gates: a household requesting both services remains open after only one is completed; a partial water delivery leaves the balance outstanding; two simultaneous bookings cannot reserve the last charging slot twice; site closure triggers reassignment without marking bookings fulfilled; replaying a fulfillment submission does not increase totals; an interrupted charging session can be rebooked without duplicating the original need.
+**Stage 3 — aggregation and provider portal.** Implement indicator cells, suppression,
+coverage and confidence labels, the areas-of-need ranking, the need map, provider
+accounts and vetting, activity logging, coverage, alerts, exports, and API keys.
 
-**Stage 4 — evidence review and dashboard.** Add geographic comparison candidates, explicit review decisions, freshness indicators, aggregate maps, and coverage metrics. Gate: nearby disagreement never automatically rejects aid; different-time restoration is not flagged as a simultaneous conflict; missing reports are displayed as unknown.
+Gates:
+- A confirmed report appears in indicators within 5 minutes.
+- Repeat reports from one reporter count once.
+- Unknown areas are never shown as zero.
+- Small cells are suppressed in every view, export, API response, and alert.
+- An activity changes coverage immediately.
+- Unvetted providers never see contact data.
 
-**Stage 5 — bounded live pilot.** Launch in agreed communities with named staff and a manual fallback. Review completion, time to first action, unmet needs, correction volume, delivery confirmation, and who is excluded by the channel. Security gate: one organization cannot read another's records, including exports and background jobs. Set quantitative targets with the NGO after measuring baseline workflow capacity.
+**Stage 4 — quality, freshness, and external context.** Implement comparison rules and
+the review queue, outlier and flood detection, refresh prompts and need expiry, area
+broadcasts, the mock Monitor Ciudad pipeline, and the optional public dashboard.
 
-**Stage 6 — multiple organizations.** Add scoped agreements, referrals, shared aggregate views, ownership handoffs, and revocation tests. Introduce sophisticated matching or infrastructure integrations only when data access and governance justify them.
+Gates:
+- Nearby disagreement never removes a report.
+- Different-time restoration is a transition, not a conflict.
+- Expired needs leave indicators.
+- The public dashboard is coarser and delayed, and turns off instantly.
 
-Next decisions: first NGO and communities; drinking versus other water supplies, delivery capacity and container arrangements; charging locations, supported devices, and appointment versus walk-in operation; who owns urgent follow-up; allowed outreach channels and existing contact permissions; minimum location granularity; and whether partner organizations need referrals, aggregate visibility, or shared case work.
+**Stage 5 — bounded live pilot.** Launch in agreed sectors with named staff and a manual
+fallback. Review reporting volume, coverage, freshness, provider engagement, how long
+areas stay uncovered, and who the channel excludes.
+
+Security gates:
+- One organization cannot read another's records, including exports, API keys, and
+  background jobs.
+- A provider cannot read beyond its role and vetting.
+- Tightening a profile purges disallowed fields.
+
+Set quantitative targets with CSL after a baseline week.
+
+**Stage 6 — multiple organizations.** Onboard further operating NGOs with their own
+profiles. Consider cross-tenant aggregates under sharing agreements (`DOM-095`) and the
+optional case-management module (`DOM-090`) only when governance justifies them.
+
+Decisions made and still open are tracked in the
+[requirements decisions table](components/REQUIREMENTS.md#decisions). Open launch
+blockers:
+
+- urgent referral content
+- provider vetting criteria and data-handling statement
+- the WhatsApp integration agreement
+- whether and how CSL enables the public dashboard
+- the pilot sectors' meeting points
