@@ -42,6 +42,16 @@ class Settings(BaseSettings):
     verify_token: str = "dev-verify-token"
     phone_number_id: str = ""
 
+    # WhatsApp send adapter. "fake" (default) captures in memory and contacts no
+    # network; "graph" calls the real Meta Graph API. Production defaults to graph.
+    whatsapp_adapter: str = "fake"
+    whatsapp_api_base: str = "https://graph.facebook.com"
+    whatsapp_api_version: str = "v21.0"
+
+    # NGO name used in the Step 1 canned greeting ("Somos <name>."). Step 2 will
+    # resolve the real org from the receiving phone_number_id instead.
+    pilot_org_name: str = "la ONG"
+
     # Demo seed credentials. Password is REQUIRED in production (no default) so
     # a hardcoded value is never shipped; local dev falls back to a dev value.
     seed_demo_password: str = ""
