@@ -1,0 +1,48 @@
+## Server block for Metron web on Cloud Run.
+## Rendered by the nginx image's envsubst entrypoint: only ${PORT} is substituted
+## (NGINX_ENVSUBST_FILTER=PORT in the Dockerfile), so nginx's own $uri/$host etc.
+## and the CSP are left untouched.
+
+server {
+  listen       ${PORT};
+  server_name  _;
+
+  root   /usr/share/nginx/html;
+  index  index.html;
+
+  # --- Security headers (WEB-063: strict CSP, no third-party scripts/fonts) ---
+  # connect-src allows the app's own origin and the Dashboard API origin.
+  add_header Content-Security-Policy "default-src 'self'; connect-src 'self' https://metron-api-846191018592.us-east4.run.app; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; font-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'" always;
+  add_header Referrer-Policy "no-referrer" always;
+  add_header X-Content-Type-Options "nosniff" always;
+  add_header X-Frame-Options "DENY" always;
+
+  # --- Long cache for hashed, immutable assets (Vite fingerprints filenames) ---
+  location /assets/ {
+    expires 1y;
+    add_header Cache-Control "public, immutable, max-age=31536000";
+    try_files $uri =404;
+  }
+
+  # Other static files (favicon, etc.): short cache.
+  location ~* \.(?:ico|png|jpg|jpeg|gif|svg|webp|woff2?)$ {
+    expires 7d;
+    add_header Cache-Control "public, max-age=604800";
+    try_files $uri =404;
+  }
+
+  # --- SPA fallback: every unknown route serves index.html (no cache on the shell) ---
+  location / {
+    add_header Cache-Control "no-cache, no-store, must-revalidate" always;
+    add_header Content-Security-Policy "default-src 'self'; connect-src 'self' https://metron-api-846191018592.us-east4.run.app; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; font-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'" always;
+    add_header Referrer-Policy "no-referrer" always;
+    try_files $uri $uri/ /index.html;
+  }
+
+  # Liveness probe target.
+  location = /healthz {
+    access_log off;
+    add_header Content-Type text/plain;
+    return 200 "ok\n";
+  }
+}

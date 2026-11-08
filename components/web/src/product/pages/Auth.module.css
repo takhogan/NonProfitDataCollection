@@ -1,0 +1,89 @@
+.page {
+  min-height: 100vh;
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+}
+.bar {
+  max-width: 1120px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 1rem 1.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.brand {
+  font-size: 1.1rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--text);
+  text-decoration: none;
+}
+.brand:hover {
+  text-decoration: none;
+}
+.brandDot {
+  display: none;
+}
+.center {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem 1.25rem 6rem;
+}
+.card {
+  width: 100%;
+  max-width: 400px;
+}
+.title {
+  margin: 0 0 1.5rem;
+  text-align: center;
+  font-size: 1.6rem;
+  letter-spacing: -0.02em;
+}
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-bottom: 0.9rem;
+}
+.field label {
+  font-size: 0.88rem;
+  font-weight: 450;
+  color: var(--muted);
+}
+.field input,
+.field select {
+  width: 100%;
+  min-height: 44px;
+}
+.submit {
+  width: 100%;
+  min-height: 46px;
+  margin-top: 0.5rem;
+  font-size: 1rem;
+}
+.alt {
+  margin-top: 1.5rem;
+  text-align: center;
+  font-size: 0.92rem;
+}
+.alt a {
+  color: var(--accent);
+}
+.demo {
+  margin-top: 1rem;
+  text-align: center;
+  font-size: 0.84rem;
+  color: var(--muted);
+}
+.err {
+  background: var(--danger-bg);
+  color: var(--danger);
+  border-radius: var(--radius-sm);
+  padding: 0.6rem 0.75rem;
+  margin-bottom: 1rem;
+  font-size: 0.9rem;
+}
