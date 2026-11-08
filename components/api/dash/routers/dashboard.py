@@ -34,11 +34,54 @@ def _apply_privacy(ctx: RequestContext, row: dict) -> dict:
 
 # ---- Dashboard -------------------------------------------------------------
 
-def _top_areas_phrase(areas: list[dict]) -> str:
+def _plural(n: int, singular: str, plural: str | None = None) -> str:
+    return singular if n == 1 else (plural or singular + "s")
+
+
+def _build_summary(org_name: str, m: dict, areas: list[dict]) -> str:
+    """A plain-language summary built from the real numbers (no LLM).
+
+    Reads naturally for the empty case, the all-clear case, and the urgent case,
+    and names the hardest-hit neighborhoods when there are any.
+    """
+    reports = m["reports_today"]
+    if reports == 0:
+        return (f"No new reports in the last 24 hours for {org_name}. "
+                "The map reflects the most recent known conditions.")
+
+    # Lead sentence with the headline count.
+    lead = (f"{reports} {_plural(reports, 'report')} came in over the last 24 hours "
+            f"for {org_name}.")
+
+    # Service impact clause (only mention what's actually affected).
+    parts = []
+    if m["without_power"]:
+        parts.append(f"{m['without_power']} {_plural(m['without_power'], 'household')} "
+                     "without power")
+    if m["without_water"]:
+        parts.append(f"{m['without_water']} without water")
+    if parts:
+        joined = ", ".join(parts)
+        impact = " " + joined[0].upper() + joined[1:] + "."
+    else:
+        impact = " No power or water outages reported."
+
+    # Urgent clause.
+    urgent = m["urgent"]
+    if urgent:
+        urgent_clause = (f" {urgent} {_plural(urgent, 'report needs', 'reports need')} "
+                         "urgent review.")
+    else:
+        urgent_clause = " Nothing is flagged urgent right now."
+
+    # Hardest-hit neighborhoods.
     names = [a["area"] for a in areas[:2] if a.get("area")]
-    if not names:
-        return "No area stands out yet."
-    return f"{' and '.join(names)} are the hardest hit."
+    if names:
+        where = f" {' and '.join(names)} {_plural(len(names), 'is', 'are')} the hardest hit."
+    else:
+        where = ""
+
+    return lead + impact + urgent_clause + where
 
 
 @router.get("/dashboard/summary", response_model=S.DashboardSummary)
@@ -47,9 +90,7 @@ def dashboard_summary(ctx: RequestContext = Depends(get_context),
     m = RM.dashboard_metrics(db, ctx.org_id)
     areas = RM.area_breakdown(db, ctx.org_id)
     return S.DashboardSummary(
-        summary=(f"{m['reports_today']} reports in the last 24h across {ctx.org_name}: "
-                 f"{m['without_power']} without power, {m['without_water']} without water, "
-                 f"{m['urgent']} urgent. {_top_areas_phrase(areas)}"),
+        summary=_build_summary(ctx.org_name, m, areas),
         metrics=S.DashboardMetrics(**m),
         generated_at=RM._utcnow().isoformat(),
     )
