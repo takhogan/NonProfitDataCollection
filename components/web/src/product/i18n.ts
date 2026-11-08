@@ -1,0 +1,262 @@
+/**
+ * Product i18n. Separate from the legacy provider-portal locale files so the two
+ * string sets don't collide. Reuses the app's `Lang` from the shared i18n
+ * context; this module just maps keys → {es, en}.
+ *
+ * Usage:  const t = useT();  t('dashboard.title')
+ */
+import { useI18n } from '../locales/i18n';
+
+type Entry = { es: string; en: string };
+
+const STR = {
+  // Brand / shell
+  'brand.name': { es: 'Metron', en: 'Metron' },
+  'brand.tagline': { es: 'Escuche directamente a las personas que atiende.', en: 'Hear directly from the people your work reaches.' },
+  'app.mock': { es: 'DATOS DE PRUEBA', en: 'DEMO DATA' },
+  'app.exit': { es: 'Salir', en: 'Sign out' },
+  'nav.dashboard': { es: 'Panel', en: 'Dashboard' },
+  'nav.reports': { es: 'Reportes', en: 'Reports' },
+  'nav.campaigns': { es: 'Campañas', en: 'Campaigns' },
+  'nav.bot': { es: 'Editor del bot', en: 'Bot editor' },
+  'nav.settings': { es: 'Ajustes', en: 'Settings' },
+
+  'common.loading': { es: 'Cargando…', en: 'Loading…' },
+  'common.retry': { es: 'Reintentar', en: 'Retry' },
+  'common.cancel': { es: 'Cancelar', en: 'Cancel' },
+  'common.save': { es: 'Guardar', en: 'Save' },
+  'common.saving': { es: 'Guardando…', en: 'Saving…' },
+  'common.saved': { es: 'Guardado', en: 'Saved' },
+  'common.back': { es: 'Atrás', en: 'Back' },
+  'common.next': { es: 'Siguiente', en: 'Next' },
+  'common.none': { es: 'Ninguno', en: 'None' },
+  'common.recommended': { es: 'Recomendado', en: 'Recommended' },
+  'common.comingSoon': { es: 'Próximamente', en: 'Coming soon' },
+  'common.optional': { es: 'Opcional', en: 'Optional' },
+
+  'error.network': { es: 'No se puede conectar con el servidor.', en: 'Cannot reach the server.' },
+  'error.generic': { es: 'Algo salió mal.', en: 'Something went wrong.' },
+  'error.permission_denied': { es: 'Correo o contraseña inválidos.', en: 'Invalid email or password.' },
+
+  // Landing
+  'landing.cta': { es: 'Crear su organización', en: 'Create your organization' },
+  'landing.login': { es: 'Iniciar sesión', en: 'Log in' },
+  'landing.how': { es: 'Cómo funciona', en: 'How it works' },
+  'landing.step.configure': { es: 'Configure', en: 'Configure' },
+  'landing.step.collect': { es: 'Recopile', en: 'Collect' },
+  'landing.step.see': { es: 'Observe', en: 'See' },
+  'landing.step.configureBody': { es: 'Elija qué quiere aprender y cómo habla su agente.', en: 'Choose what you want to learn and how your agent speaks.' },
+  'landing.step.collectBody': { es: 'Su agente conversa por WhatsApp y recoge respuestas.', en: 'Your agent talks over WhatsApp and gathers answers.' },
+  'landing.step.seeBody': { es: 'Las conversaciones se vuelven datos y un panel en vivo.', en: 'Conversations become structured data and a live dashboard.' },
+  'landing.use.outages': { es: 'Cortes de luz y agua', en: 'Power and water outages' },
+  'landing.use.outagesBody': { es: 'Qué calles están sin servicio y desde cuándo.', en: 'Which blocks are out, and since when.' },
+  'landing.use.food': { es: 'Bancos de alimentos', en: 'Food bank check-ins' },
+  'landing.use.foodBody': { es: 'Qué necesita cada familia y si recibió la entrega.', en: 'What each family needs, and whether it arrived.' },
+  'landing.use.elderly': { es: 'Personas mayores', en: 'Elderly wellbeing' },
+  'landing.use.elderlyBody': { es: 'Un chequeo regular con quienes viven solos.', en: 'A regular check-in with people who live alone.' },
+  'landing.trust.title': { es: 'Recopile solo lo necesario', en: 'Collect only what you need' },
+  'landing.trust.body': { es: 'Guarde menos datos por diseño. Si alguna vez se exponen, las personas que atiende quedan protegidas.', en: 'Store less by design. If the data is ever exposed, the people you serve stay protected.' },
+  'landing.chat.turns': { es: 'se convierte en', en: 'becomes' },
+  'landing.chat.msg1': { es: 'Sin luz desde anoche, somos 4 en casa.', en: 'No power since last night, there are 4 of us at home.' },
+  'landing.chat.msg2': { es: 'Gracias. ¿Hay personas mayores o enfermas en casa?', en: 'Thank you. Are there any elderly or sick people at home?' },
+  'landing.chat.msg3': { es: 'Sí, mi mamá de 78 años.', en: 'Yes, my 78-year-old mother.' },
+  'landing.chat.tag1': { es: 'Sin luz', en: 'No power' },
+  'landing.chat.tag2': { es: '2 días', en: '2 days' },
+  'landing.chat.tag3': { es: '4 personas', en: '4 people' },
+  'landing.chat.tag4': { es: 'Adulto mayor', en: 'Elderly' },
+
+  // Auth
+  'auth.loginTitle': { es: 'Iniciar sesión', en: 'Log in' },
+  'auth.signupTitle': { es: 'Cree su organización', en: 'Create your organization' },
+  'auth.email': { es: 'Correo electrónico', en: 'Email' },
+  'auth.password': { es: 'Contraseña', en: 'Password' },
+  'auth.displayName': { es: 'Su nombre', en: 'Your name' },
+  'auth.orgName': { es: 'Nombre de la organización', en: 'Organization name' },
+  'auth.orgType': { es: 'Tipo', en: 'Type' },
+  'auth.loginBtn': { es: 'Entrar', en: 'Log in' },
+  'auth.signupBtn': { es: 'Crear organización', en: 'Create organization' },
+  'auth.toSignup': { es: '¿No tiene cuenta? Cree su organización', en: "Don't have an account? Create your organization" },
+  'auth.toLogin': { es: '¿Ya tiene cuenta? Inicie sesión', en: 'Already have an account? Log in' },
+  'auth.demoHint': { es: 'Demo: demo@metron.org / demo-pass', en: 'Demo: demo@metron.org / demo-pass' },
+
+  // Org types
+  'orgType.NGO': { es: 'ONG', en: 'NGO' },
+  'orgType.NPO': { es: 'OSFL', en: 'NPO' },
+  'orgType.community': { es: 'Grupo comunitario', en: 'Community group' },
+  'orgType.foundation': { es: 'Fundación', en: 'Foundation' },
+  'orgType.other': { es: 'Otro', en: 'Other' },
+
+  // Onboarding
+  'onb.step.org': { es: 'Organización', en: 'Organization' },
+  'onb.step.goal': { es: 'Objetivo', en: 'Goal' },
+  'onb.step.dashboard': { es: 'Panel', en: 'Dashboard' },
+  'onb.step.protection': { es: 'Protección', en: 'Protection' },
+  'onb.step.review': { es: 'Revisar', en: 'Review' },
+  'onb.org.title': { es: 'Cuéntenos sobre su organización', en: 'Tell us about your organization' },
+  'onb.org.sub': { es: 'Esto ayuda a recomendar qué recopilar y cómo mostrarlo.', en: 'This helps us recommend what to collect and how to show it.' },
+  'onb.org.name': { es: 'Nombre', en: 'Name' },
+  'onb.org.type': { es: 'Tipo', en: 'Type' },
+  'onb.org.mission': { es: 'Misión (breve)', en: 'Mission (short)' },
+  'onb.org.region': { es: 'País / región', en: 'Country / region' },
+  'onb.org.languages': { es: 'Idiomas que atiende', en: 'Languages served' },
+  'onb.org.population': { es: 'Población que atiende', en: 'Population served' },
+  'onb.org.team': { es: 'Tamaño del equipo', en: 'Team size' },
+  'onb.goal.title': { es: '¿Qué quiere aprender?', en: 'What do you want to learn?' },
+  'onb.goal.sub': { es: 'Elija una plantilla. Puede editar las preguntas que recoge el agente.', en: 'Pick a template. You can edit the questions the agent collects.' },
+  'onb.goal.questions': { es: 'Preguntas que hará el agente', en: 'Questions the agent will ask' },
+  'onb.dash.title': { es: 'Elija su panel', en: 'Choose your dashboard' },
+  'onb.dash.sub': { es: 'Un punto de partida. Puede reorganizar los widgets más tarde.', en: 'A starting point. You can rearrange widgets later.' },
+  'onb.dash.widgets': { es: 'Widgets', en: 'Widgets' },
+  'onb.review.title': { es: 'Revisar y lanzar', en: 'Review & launch' },
+  'onb.review.sub': { es: 'Confirme la configuración y empiece a recopilar.', en: 'Confirm your setup and start collecting.' },
+  'onb.review.org': { es: 'Organización', en: 'Organization' },
+  'onb.review.goal': { es: 'Objetivo de recolección', en: 'Collection goal' },
+  'onb.review.dashboard': { es: 'Diseño del panel', en: 'Dashboard layout' },
+  'onb.review.protection': { es: 'Protección de datos', en: 'Data protection' },
+  'onb.launch': { es: 'Empezar a recopilar', en: 'Start collecting' },
+  'onb.launching': { es: 'Preparando…', en: 'Setting up…' },
+  'onb.err.name': { es: 'El nombre es obligatorio.', en: 'Name is required.' },
+  'widget.summary': { es: 'Resumen IA', en: 'AI summary' },
+  'widget.metrics': { es: 'Métricas', en: 'Metric cards' },
+  'widget.areas': { es: 'Vecindarios', en: 'Neighborhoods' },
+  'widget.feed': { es: 'Conversaciones', en: 'Live feed' },
+  'widget.map': { es: 'Mapa', en: 'Map' },
+  'widget.reports': { es: 'Reportes', en: 'Reports' },
+  'widget.urgent': { es: 'Cola urgente', en: 'Urgent queue' },
+  'widget.trend': { es: 'Tendencia', en: 'Trend' },
+
+  // Dashboard
+  'dashboard.title': { es: 'Panel', en: 'Dashboard' },
+  'dashboard.listening': { es: 'Agente escuchando', en: 'Agent listening' },
+  'dashboard.collect': { es: 'Recopilar datos', en: 'Collect data' },
+  'dashboard.metric.reports_today': { es: 'Reportes hoy', en: 'Reports today' },
+  'dashboard.metric.without_power': { es: 'Sin electricidad', en: 'Without power' },
+  'dashboard.metric.without_water': { es: 'Sin agua', en: 'Without water' },
+  'dashboard.metric.urgent': { es: 'Urgentes', en: 'Urgent' },
+  'dashboard.areas': { es: 'Por vecindario', en: 'By neighborhood' },
+  'dashboard.feed': { es: 'Conversaciones en vivo', en: 'Live conversations' },
+  'dashboard.feedEmpty': { es: 'Aún no hay mensajes.', en: 'No messages yet.' },
+  'dashboard.urgentQueue': { es: 'Cola urgente', en: 'Urgent queue' },
+  'dashboard.urgentEmpty': { es: 'Nada urgente ahora mismo.', en: 'Nothing urgent right now.' },
+  'dashboard.ask.title': { es: 'Pregunte a sus datos', en: 'Ask your data' },
+  'dashboard.ask.placeholder': { es: '¿Qué vecindario está peor?', en: 'Which neighborhood is worst?' },
+  'dashboard.ask.btn': { es: 'Preguntar', en: 'Ask' },
+  'dashboard.area.reports': { es: 'reportes', en: 'reports' },
+  'dashboard.summaryTitle': { es: 'Resumen', en: 'Summary' },
+  'dashboard.updated': { es: 'Actualizado', en: 'Updated' },
+
+  // Reports
+  'reports.title': { es: 'Reportes', en: 'Reports' },
+  'reports.all': { es: 'Todos', en: 'All' },
+  'reports.empty': { es: 'No hay reportes con este estado.', en: 'No reports with this status.' },
+  'reports.col.area': { es: 'Zona', en: 'Area' },
+  'reports.col.status': { es: 'Estado', en: 'Status' },
+  'reports.col.service': { es: 'Servicio', en: 'Service' },
+  'reports.col.reporter': { es: 'Quien reporta', en: 'Reporter' },
+  'reports.col.when': { es: 'Cuándo', en: 'When' },
+  'reports.transcript': { es: 'Conversación', en: 'Transcript' },
+  'reports.extracted': { es: 'Campos extraídos', en: 'Extracted fields' },
+  'reports.notes': { es: 'Notas', en: 'Notes' },
+  'reports.assignee': { es: 'Asignado a', en: 'Assignee' },
+  'reports.from.reporter': { es: 'Persona', en: 'Reporter' },
+  'reports.from.bot': { es: 'Agente', en: 'Agent' },
+  'reports.status.draft': { es: 'Borrador', en: 'Draft' },
+  'reports.status.confirmed': { es: 'Confirmado', en: 'Confirmed' },
+  'reports.status.review': { es: 'En revisión', en: 'In review' },
+  'reports.status.superseded': { es: 'Reemplazado', en: 'Superseded' },
+  'reports.status.withdrawn': { es: 'Retirado', en: 'Withdrawn' },
+  'reports.urgent': { es: 'Urgente', en: 'Urgent' },
+  'reports.nameHidden': { es: 'Nombre no almacenado', en: 'Name not stored' },
+  'reports.unassigned': { es: 'Sin asignar', en: 'Unassigned' },
+
+  // Campaigns
+  'campaigns.title': { es: 'Campañas', en: 'Campaigns' },
+  'campaigns.new': { es: 'Nueva campaña', en: 'New campaign' },
+  'campaigns.name': { es: 'Nombre', en: 'Name' },
+  'campaigns.template': { es: 'Plantilla de recolección', en: 'Collection template' },
+  'campaigns.areas': { es: 'Zonas (separadas por coma)', en: 'Areas (comma-separated)' },
+  'campaigns.create': { es: 'Crear campaña', en: 'Create campaign' },
+  'campaigns.empty': { es: 'Aún no hay campañas.', en: 'No campaigns yet.' },
+  'campaigns.status.active': { es: 'Activa', en: 'Active' },
+  'campaigns.progress': { es: 'Progreso', en: 'Progress' },
+
+  // Bot editor
+  'bot.title': { es: 'Editor del bot', en: 'Bot editor' },
+  'bot.greeting': { es: 'Mensaje de bienvenida', en: 'Intro message' },
+  'bot.language': { es: 'Idioma', en: 'Language' },
+  'bot.template': { es: 'Qué recopila', en: 'What it collects' },
+  'bot.askConsent': { es: 'Pedir consentimiento al inicio', en: 'Ask for consent up front' },
+  'bot.handoff': { es: 'Permitir traspaso a una persona', en: 'Allow handoff to a human' },
+  'bot.preview': { es: 'Vista previa', en: 'Preview' },
+  'bot.previewHint': { es: 'Así se verá la conversación en WhatsApp.', en: 'This is how the chat will look on WhatsApp.' },
+  'bot.defaultGreeting': { es: 'Hola, somos {org}. Nos gustaría hacerle unas preguntas rápidas para ayudar mejor. ¿Está bien?', en: 'Hi, this is {org}. We would like to ask you a few quick questions so we can help better. Is that okay?' },
+  'bot.consentLine': { es: '¿Acepta compartir esta información? Responda SÍ para continuar.', en: 'Do you agree to share this information? Reply YES to continue.' },
+  'bot.sampleYes': { es: 'Sí', en: 'Yes' },
+  'bot.sampleAnswer': { es: 'Somos 3 en casa.', en: 'There are 3 of us at home.' },
+
+  'campaigns.proactive': { es: 'Enviar chequeo proactivo', en: 'Send a proactive check-in' },
+  'campaigns.wait': { es: 'Esperar mensajes entrantes', en: 'Wait for inbound messages' },
+  'campaigns.sent': { es: 'enviados', en: 'sent' },
+  'campaigns.replied': { es: 'respondieron', en: 'replied' },
+
+  // Settings
+  'settings.title': { es: 'Ajustes', en: 'Settings' },
+  'settings.profile': { es: 'Perfil de la organización', en: 'Organization profile' },
+  'settings.channels': { es: 'Canales', en: 'Channels' },
+  'settings.protection': { es: 'Protección de datos', en: 'Data protection' },
+  'settings.team': { es: 'Equipo', en: 'Team' },
+  'settings.export': { es: 'Exportar', en: 'Export' },
+
+  // Channels
+  'channel.whatsapp': { es: 'WhatsApp', en: 'WhatsApp' },
+  'channel.sms': { es: 'SMS', en: 'SMS' },
+  'channel.telegram': { es: 'Telegram', en: 'Telegram' },
+  'channel.email': { es: 'Correo', en: 'Email' },
+  'channel.status.connected': { es: 'Conectado', en: 'Connected' },
+  'channel.status.disconnected': { es: 'No conectado', en: 'Not connected' },
+  'channel.status.pending': { es: 'Pendiente', en: 'Pending' },
+  'channel.mode.shared_bot': { es: 'Bot compartido', en: 'Shared bot' },
+  'channel.mode.own_number': { es: 'Número propio', en: 'Own number' },
+  'channel.number': { es: 'Número / identificador', en: 'Number / identifier' },
+
+  // Data protection
+  'dp.title': { es: 'Protección de datos', en: 'Data protection' },
+  'dp.intro': { es: 'Recopile solo lo necesario. Si estos datos se exponen, las personas que atiende permanecen a salvo.', en: 'Collect only what you need. If this data is ever exposed, the people you serve stay safe.' },
+  'dp.preset.standard': { es: 'Estándar', en: 'Standard' },
+  'dp.preset.standardDesc': { es: 'Registros completos.', en: 'Full records.' },
+  'dp.preset.protected': { es: 'Protegido', en: 'Protected' },
+  'dp.preset.protectedDesc': { es: 'Sin nombres; teléfonos enmascarados; ubicación solo por vecindario; mensajes se borran tras N días.', en: 'No names; phones masked; location at neighborhood level only; raw messages auto-deleted after N days.' },
+  'dp.preset.minimal': { es: 'Mínimo', en: 'Minimal' },
+  'dp.preset.minimalDesc': { es: 'Solo agregados; registros individuales ocultos para la mayoría; retención más corta.', en: 'Aggregate-only; individual records hidden from most roles; shortest retention.' },
+  'dp.preset.custom': { es: 'Personalizado', en: 'Custom' },
+  'dp.preset.customDesc': { es: 'Ajuste cada opción.', en: 'Tune each option.' },
+  'dp.recommended': { es: 'Recomendado para trabajo sensible', en: 'Recommended for sensitive work' },
+  'dp.storeNames': { es: 'Almacenar nombres', en: 'Store names' },
+  'dp.location': { es: 'Precisión de ubicación', en: 'Location precision' },
+  'dp.location.area': { es: 'Solo vecindario', en: 'Neighborhood only' },
+  'dp.location.precise': { es: 'Precisa', en: 'Precise' },
+  'dp.retention': { es: 'Retención de mensajes (días)', en: 'Raw message retention (days)' },
+  'dp.mask': { es: 'Enmascarar teléfonos', en: 'Mask phone numbers' },
+  'dp.redact': { es: 'Redactar exportaciones', en: 'Redact exports' },
+  'dp.audit': { es: 'Registro de auditoría', en: 'Audit log' },
+  'dp.whoViews': { es: 'Quién ve registros individuales', en: 'Who can view individual records' },
+  'dp.enforceNote': { es: 'La API aplica estas reglas antes de enviar datos; la interfaz nunca muestra lo que no se almacena.', en: 'The API enforces these rules before data leaves it; the UI never shows what is not stored.' },
+
+  // Consent
+  'consent.granted': { es: 'Consintió', en: 'Granted' },
+  'consent.pending': { es: 'Pendiente', en: 'Pending' },
+  'consent.declined': { es: 'Rechazó', en: 'Declined' },
+  'consent.unknown': { es: 'Desconocido', en: 'Unknown' },
+} as const satisfies Record<string, Entry>;
+
+export type ProductKey = keyof typeof STR;
+
+export function translateP(lang: 'es' | 'en', key: ProductKey): string {
+  const e = STR[key];
+  return e ? e[lang] : key;
+}
+
+export function useT() {
+  const { lang } = useI18n();
+  return (key: ProductKey) => translateP(lang, key);
+}

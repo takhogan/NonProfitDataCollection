@@ -1,0 +1,293 @@
+.page {
+  min-height: 100vh;
+  background: var(--bg);
+}
+.bar {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 1rem 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.brand {
+  font-size: 1.1rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--text);
+  text-decoration: none;
+}
+.brand:hover {
+  text-decoration: none;
+}
+.brandDot {
+  display: none;
+}
+.wrap {
+  max-width: 680px;
+  margin: 0 auto;
+  padding: 1rem 1.5rem 5rem;
+}
+
+/* progress — thin segments like a setup assistant */
+.steps {
+  display: flex;
+  gap: 0.35rem;
+  margin: 0.5rem 0 0.5rem;
+}
+.stepDot {
+  flex: 1;
+  height: 3px;
+  border-radius: 999px;
+  background: var(--hairline-strong);
+}
+.stepDotActive,
+.stepDotDone {
+  background: var(--accent);
+}
+.stepLabel {
+  font-size: 0.82rem;
+  color: var(--muted);
+  font-weight: 450;
+  margin: 0 0 0.75rem;
+}
+
+/* card is just the page surface, not a boxed thing */
+.card {
+  padding: 1.5rem 0 0;
+}
+.title {
+  margin: 0 0 0.4rem;
+  font-size: 1.75rem;
+  letter-spacing: -0.02em;
+}
+.sub {
+  color: var(--muted);
+  margin: 0 0 1.75rem;
+  line-height: 1.5;
+  font-size: 1rem;
+}
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-bottom: 1.1rem;
+}
+.field > label {
+  font-size: 0.88rem;
+  font-weight: 450;
+  color: var(--muted);
+}
+.row2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+@media (max-width: 560px) {
+  .row2 {
+    grid-template-columns: 1fr;
+  }
+}
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+.chip {
+  min-height: 36px;
+  padding: 0.3rem 0.85rem;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--hairline-strong);
+  background: var(--card);
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: all 0.15s ease;
+}
+.chipOn {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+  font-weight: 450;
+}
+
+/* iOS Settings-style selectable option rows (inset grouped) */
+.optionGroup {
+  background: var(--card);
+  border: 0.5px solid var(--hairline);
+  border-radius: var(--radius);
+  overflow: hidden;
+  box-shadow: var(--shadow-soft);
+}
+.option {
+  display: flex;
+  gap: 0.9rem;
+  align-items: center;
+  text-align: left;
+  width: 100%;
+  padding: 0.95rem 1.1rem;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  min-height: 0;
+  cursor: pointer;
+  position: relative;
+  color: var(--text);
+  transition: background 0.15s ease;
+}
+.option:hover {
+  background: var(--surface);
+}
+.option + .option::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 1.1rem;
+  right: 0;
+  border-top: 0.5px solid var(--hairline);
+}
+.optionOn {
+  background: var(--accent-soft);
+}
+.optionOn:hover {
+  background: var(--accent-soft);
+}
+.optionBody {
+  flex: 1;
+  min-width: 0;
+}
+.optionBody h3 {
+  margin: 0 0 0.15rem;
+  font-size: 1rem;
+  font-weight: 500;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+.optionBody p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+.optionCheck {
+  color: var(--accent);
+  flex-shrink: 0;
+}
+.recTag {
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: var(--accent-strong);
+  background: var(--card);
+  border: 0.5px solid color-mix(in srgb, var(--accent) 40%, transparent);
+  border-radius: var(--radius-pill);
+  padding: 0.05rem 0.5rem;
+  white-space: nowrap;
+}
+
+/* editable questions — grouped rows */
+.qList {
+  margin-top: 1.5rem;
+}
+.qCaption {
+  font-size: 0.82rem;
+  color: var(--muted);
+  margin: 0 0 0.6rem;
+  font-weight: 450;
+}
+.qRow {
+  display: flex;
+  gap: 0.6rem;
+  align-items: center;
+  padding: 0.3rem 0;
+}
+.qRow input[type='text'] {
+  flex: 1;
+}
+.qType {
+  font-size: 0.78rem;
+  color: var(--muted-2);
+  min-width: 60px;
+}
+
+/* dashboard preview mini */
+.previewMini {
+  display: grid;
+  gap: 4px;
+  width: 104px;
+  flex-shrink: 0;
+  padding: 7px;
+  background: var(--surface);
+  border-radius: 9px;
+  border: 0.5px solid var(--hairline);
+}
+.pvBar {
+  height: 7px;
+  border-radius: 3px;
+  background: var(--accent);
+  opacity: 0.8;
+}
+.pvRow {
+  display: flex;
+  gap: 4px;
+}
+.pvCell {
+  flex: 1;
+  height: 15px;
+  border-radius: 3px;
+  background: #cfe0f5;
+}
+.pvBig {
+  height: 26px;
+  border-radius: 3px;
+  background: #d8e4f3;
+}
+.pvFeed {
+  height: 7px;
+  border-radius: 2px;
+  background: var(--hairline-strong);
+}
+
+/* widget toggles */
+.widgets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 1.25rem;
+}
+
+/* review — grouped rows */
+.reviewGroup {
+  border-top: 0.5px solid var(--hairline);
+}
+.reviewRow {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.75rem 0;
+  border-bottom: 0.5px solid var(--hairline);
+}
+.reviewRow > span:first-child {
+  color: var(--muted);
+}
+.reviewRow > span:last-child {
+  text-align: right;
+  font-weight: 450;
+}
+
+.nav {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-top: 2rem;
+}
+.err {
+  background: var(--danger-bg);
+  color: var(--danger);
+  border-radius: var(--radius-sm);
+  padding: 0.6rem 0.75rem;
+  margin-bottom: 1rem;
+  font-size: 0.9rem;
+}
