@@ -14,7 +14,8 @@ PROD = dict(
     verify_token="prod-verify",
     app_secret="s", whatsapp_token="t", phone_number_id="p",
     seed_demo_password="x",
-    data_encryption_key="A" * 43, lookup_hmac_key="B" * 43,
+    kms_key_name="projects/p/locations/us-east4/keyRings/metron/cryptoKeys/field-data",
+    wrapped_data_key="d3JhcHBlZA==",
 )
 
 

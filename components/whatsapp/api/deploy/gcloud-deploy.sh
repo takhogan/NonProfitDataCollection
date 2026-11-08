@@ -5,7 +5,7 @@
 #   deploy/gcloud-deploy.sh all         # run every step in order (new project)
 #   deploy/gcloud-deploy.sh deploy      # redeploy code: build migrate service worker url
 #
-# Steps: project apis registry build sql sa secrets migrate service worker url
+# Steps: project apis registry build sql sa kms secrets migrate service worker url
 #
 # Every step is safe to re-run (it skips what already exists), except `build`,
 # `migrate`, `service` and `worker`, which roll out a new image/revision each time.
@@ -28,11 +28,19 @@ DB_NAME="${DB_NAME:-aid}"
 DB_USER="${DB_USER:-aid_app}"
 RUN_SA_NAME="${RUN_SA_NAME:-webhook-run}"
 WORKER_SERVICE="${WORKER_SERVICE:-aid-worker}"
-PILOT_ORG_NAME="${PILOT_ORG_NAME:-Agua Azul}"   # "Somos <name>." in the greeting
+PILOT_ORG_NAME="${PILOT_ORG_NAME:-Agua Azul}"   # fallback org name in texts
+# Demo: numbers with no channel_account row go to this organization. Set to ""
+# once the real number is linked with scripts/link_channel.py.
+WHATSAPP_FALLBACK_ORG_NAME="${WHATSAPP_FALLBACK_ORG_NAME-Agua Azul (demo, standard)}"
 
 IMAGE_TAG="${IMAGE_TAG:-$(git rev-parse --short HEAD 2>/dev/null || date +%s)}"
 IMAGE="$REGION-docker.pkg.dev/$PROJECT_ID/$REPO/aid-api:$IMAGE_TAG"
 RUN_SA="$RUN_SA_NAME@$PROJECT_ID.iam.gserviceaccount.com"
+# Cloud KMS key for field encryption (DB-050, app/crypto.py). Same region as the
+# rest (outside Venezuela).
+KMS_KEYRING="${KMS_KEYRING:-metron}"
+KMS_KEY_ID="${KMS_KEY_ID:-field-data}"
+KMS_KEY="projects/$PROJECT_ID/locations/$REGION/keyRings/$KMS_KEYRING/cryptoKeys/$KMS_KEY_ID"
 
 # Secret Manager name -> env var the app reads (see app/config.py).
 SECRET_MAP=(
@@ -43,8 +51,7 @@ SECRET_MAP=(
   "whatsapp-token:WHATSAPP_TOKEN"
   "whatsapp-phone-id:PHONE_NUMBER_ID"
   "seed-demo-password:SEED_DEMO_PASSWORD"
-  "data-encryption-key:DATA_ENCRYPTION_KEY"
-  "lookup-hmac-key:LOOKUP_HMAC_KEY"
+  "wrapped-data-key:WRAPPED_DATA_KEY"
 )
 
 g() { gcloud --project="$PROJECT_ID" --quiet "$@"; }
@@ -140,11 +147,6 @@ step_secrets() {
   openssl rand -hex 32 | tr -d '\n' | ensure_secret jwt-secret
   openssl rand -hex 24 | tr -d '\n' | ensure_secret verify-token
   openssl rand -hex 24 | tr -d '\n' | ensure_secret seed-demo-password
-  # App-level encryption (DB-050) and lookup HMAC (DB-051) keys. Created once and
-  # never rotated by this script: a new data key would make existing ciphertext
-  # (phone numbers, addresses, notes) unreadable.
-  openssl rand -base64 32 | tr -d '\n' | ensure_secret data-encryption-key
-  openssl rand -base64 32 | tr -d '\n' | ensure_secret lookup-hmac-key
   # Meta-owned values. Until davidkim1 adds real versions, APP_SECRET is a random
   # synthetic value (so only our own test requests verify) and the outbound
   # token/phone id are placeholders (nothing sends from this service yet).
@@ -160,13 +162,46 @@ step_secrets() {
   done
 }
 
+# Envelope encryption setup (one time). Creates the KMS key ring and key (90-day
+# rotation), lets only the runtime service account decrypt with it, and stores a
+# random 32-byte root key wrapped by it as the secret wrapped-data-key. The
+# plaintext root key exists only inside this pipe. Re-running never replaces an
+# existing wrapped key (a new root key would make stored data unreadable).
+# Emergency wipe: `gcloud kms keys versions destroy` on every version of the key.
+step_kms() {
+  g services enable cloudkms.googleapis.com
+  g kms keyrings describe "$KMS_KEYRING" --location="$REGION" >/dev/null 2>&1 \
+    || g kms keyrings create "$KMS_KEYRING" --location="$REGION"
+  if ! g kms keys describe "$KMS_KEY_ID" --keyring="$KMS_KEYRING" --location="$REGION" \
+      >/dev/null 2>&1; then
+    g kms keys create "$KMS_KEY_ID" --keyring="$KMS_KEYRING" --location="$REGION" \
+      --purpose=encryption --rotation-period=90d \
+      --next-rotation-time="$(date -u -v+90d +%Y-%m-%dT%H:%M:%SZ 2>/dev/null \
+        || date -u -d '+90 days' +%Y-%m-%dT%H:%M:%SZ)"
+  fi
+  g kms keys add-iam-policy-binding "$KMS_KEY_ID" --keyring="$KMS_KEYRING" \
+    --location="$REGION" --member="serviceAccount:$RUN_SA" \
+    --role="roles/cloudkms.cryptoKeyDecrypter" >/dev/null
+  if g secrets describe wrapped-data-key >/dev/null 2>&1; then
+    echo "secret wrapped-data-key: exists (not replaced)"
+  else
+    openssl rand 32 \
+      | g kms encrypt --key="$KMS_KEY_ID" --keyring="$KMS_KEYRING" --location="$REGION" \
+          --plaintext-file=- --ciphertext-file=- \
+      | base64 | tr -d '\n' | put_secret wrapped-data-key
+  fi
+  g secrets add-iam-policy-binding wrapped-data-key \
+    --member="serviceAccount:$RUN_SA" --role="roles/secretmanager.secretAccessor" >/dev/null
+  echo "KMS key: $KMS_KEY"
+}
+
 step_migrate() {
   local verb=create
   g run jobs describe aid-migrate --region="$REGION" >/dev/null 2>&1 && verb=update
   g run jobs "$verb" aid-migrate --region="$REGION" --image="$IMAGE" \
     --service-account="$RUN_SA" \
     --set-cloudsql-instances="$(sql_conn)" \
-    --set-env-vars=APP_ENV=production "$(secret_flags)" \
+    --set-env-vars="APP_ENV=production,KMS_KEY_NAME=$KMS_KEY" "$(secret_flags)" \
     --command=python --args=-m,scripts.migrate \
     --max-retries=0 --task-timeout=10m
   g run jobs execute aid-migrate --region="$REGION" --wait
@@ -180,7 +215,7 @@ step_service() {
     --allow-unauthenticated --port=8080 \
     --min-instances=0 --max-instances=3 --cpu=1 --memory=512Mi \
     --set-cloudsql-instances="$(sql_conn)" \
-    --set-env-vars=APP_ENV=production "$(secret_flags)"
+    --set-env-vars="APP_ENV=production,KMS_KEY_NAME=$KMS_KEY" "$(secret_flags)"
 }
 
 step_worker() {
@@ -192,7 +227,7 @@ step_worker() {
     --no-allow-unauthenticated --port=8080 \
     --min-instances=1 --max-instances=1 --no-cpu-throttling --cpu=1 --memory=512Mi \
     --set-cloudsql-instances="$(sql_conn)" \
-    --set-env-vars="APP_ENV=production,WHATSAPP_ADAPTER=graph,PILOT_ORG_NAME=$PILOT_ORG_NAME" \
+    --set-env-vars="^@^APP_ENV=production@WHATSAPP_ADAPTER=graph@PILOT_ORG_NAME=$PILOT_ORG_NAME@KMS_KEY_NAME=$KMS_KEY@WHATSAPP_FALLBACK_ORG_NAME=$WHATSAPP_FALLBACK_ORG_NAME" \
     "$(secret_flags)" \
     --command=python --args=-m,scripts.worker
 }
@@ -211,6 +246,11 @@ step_deploy() {
     echo "Uncommitted changes in $(pwd); commit or stash them first." >&2
     exit 1
   fi
+  # Without the wrapped root key the new revisions refuse to start.
+  if ! g secrets describe wrapped-data-key >/dev/null 2>&1; then
+    echo "Secret wrapped-data-key is missing: run ./deploy/gcloud-deploy.sh kms first." >&2
+    exit 1
+  fi
   for s in build migrate service worker url; do echo "== $s"; "step_$s"; done
 }
 
@@ -218,9 +258,9 @@ main() {
   local s="${1:-}"
   case "$s" in
     deploy) step_deploy ;;
-    all) for s in project apis registry build sql sa secrets migrate service worker url; do
+    all) for s in project apis registry build sql sa kms secrets migrate service worker url; do
            echo "== $s"; "step_$s"; done ;;
-    project|apis|registry|build|sql|sa|secrets|migrate|service|worker|url) "step_$s" ;;
+    project|apis|registry|build|sql|sa|kms|secrets|migrate|service|worker|url) "step_$s" ;;
     *) sed -n '2,17p' "$0"; exit 1 ;;
   esac
 }

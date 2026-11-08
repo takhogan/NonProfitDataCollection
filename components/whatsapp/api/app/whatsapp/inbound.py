@@ -143,8 +143,19 @@ def redacted_summary(payload: dict) -> dict:
 
 
 def channel_for(db: Session, phone_number_id: str) -> ChannelAccount | None:
-    return db.scalar(select(ChannelAccount).where(
-        ChannelAccount.phone_number_id == phone_number_id, ChannelAccount.status == "active"))
+    ch = db.scalar(select(ChannelAccount).where(
+        ChannelAccount.phone_number_id == phone_number_id))
+    if ch is not None:
+        return ch if ch.status == "active" else None  # disabled stays unanswered
+    fallback = get_settings().whatsapp_fallback_org_name
+    if not fallback:
+        return None
+    org_id = db.scalar(select(Organization.id).where(Organization.name == fallback))
+    if org_id is None:
+        log.error("WHATSAPP_FALLBACK_ORG_NAME %r matches no organization", fallback)
+        return None
+    # Transient (never saved): channel_account is read-only for the worker role.
+    return ChannelAccount(phone_number_id=phone_number_id, organization_id=org_id)
 
 
 def _context(db: Session, ch: ChannelAccount, sender: str, now: datetime) -> EngineContext:
@@ -299,7 +310,8 @@ def process_event(event_id: str, extractor: Extractor | None, now: datetime | No
         for pnid in {m.phone_number_id for m in msgs} | {s.phone_number_id for s in stats}:
             ch = channel_for(db, pnid)
             if ch is not None:
-                db.expunge(ch)
+                if ch in db:
+                    db.expunge(ch)
                 channels[pnid] = ch
 
     status, reason = "processed", None
@@ -360,7 +372,8 @@ def queue_surge_holding(batch_size: int, now: datetime, session_factory=None) ->
             for m in msgs:
                 ch = channel_for(db, m.phone_number_id)
                 if ch is not None and m.inbound.kind != "ignore":
-                    db.expunge(ch)
+                    if ch in db:
+                        db.expunge(ch)
                     work.append((ch, m.sender, m.inbound.received_at or now))
     queued, seen = 0, set()
     for ch, sender, received_at in work:

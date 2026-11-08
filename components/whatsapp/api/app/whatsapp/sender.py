@@ -33,6 +33,7 @@ from app.crypto import decrypt
 from app.db import system_transaction, tenant_transaction
 from app.models.base import utcnow
 from app.models.channel import ChannelAccount
+from app.models.org import Organization
 from app.models.reporting import ContactEndpoint, Message
 from app.models.system import OutboxMessage
 from app.whatsapp.adapter import SendError, WhatsAppAdapter
@@ -101,8 +102,12 @@ class _Job:
 def _org_ids(session_factory=None) -> list[str]:
     kw = {"session": session_factory()} if session_factory else {}
     with system_transaction(ACTOR, **kw) as db:
-        return sorted(set(db.scalars(select(ChannelAccount.organization_id).where(
-            ChannelAccount.status == "active"))))
+        ids = set(db.scalars(select(ChannelAccount.organization_id).where(
+            ChannelAccount.status == "active")))
+        fallback = get_settings().whatsapp_fallback_org_name
+        if fallback:
+            ids.update(db.scalars(select(Organization.id).where(Organization.name == fallback)))
+        return sorted(ids)
 
 
 def _default_number(db, org_id: str) -> str | None:

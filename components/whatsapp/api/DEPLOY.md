@@ -300,17 +300,20 @@ Notes:
 The worker now runs the full reporting questionnaire (see
 [app/whatsapp/README.md](app/whatsapp/README.md)). Before deploying it:
 
-1. **Two new required secrets.** `DATA_ENCRYPTION_KEY` and `LOOKUP_HMAC_KEY`
-   (base64, 32 bytes) encrypt phone numbers, addresses and notes and make the
-   phone lookup HMAC. In production the API **and** the worker refuse to start
-   without them. `deploy/gcloud-deploy.sh secrets` creates them once
-   (`data-encryption-key`, `lookup-hmac-key`) and never rotates them; rotating
-   the data key makes existing ciphertext unreadable.
+1. **One-time KMS setup** (envelope encryption, DB-050/051; see `app/crypto.py`):
+   `./deploy/gcloud-deploy.sh kms` creates key ring `metron` / key `field-data`
+   (us-east4, 90-day rotation), grants the runtime service account decrypt only,
+   and stores a random root key wrapped by KMS as secret `wrapped-data-key`. It
+   never replaces an existing wrapped key. `deploy` refuses to run without it,
+   and in production the API and worker refuse to start without `KMS_KEY_NAME`
+   and `WRAPPED_DATA_KEY`. Emergency wipe: destroy the key's versions.
 2. **Run the migration** (`aid-migrate`): adds `channel_account`,
    `conversation.state_json` and outbox fields.
-3. **Link the WhatsApp number** to its organization. Until this is done every
-   inbound event is kept as `ignored` / `unmapped_channel_account` and nothing
-   is answered. Run it as a one-off job or locally against the production
+3. **Link the WhatsApp number** to its organization. For the demo the worker
+   sets `WHATSAPP_FALLBACK_ORG_NAME="Agua Azul (demo, standard)"`, so any
+   unlinked number is answered as that org. For real use, link the number and
+   deploy with `WHATSAPP_FALLBACK_ORG_NAME=""`; then unlinked events are kept as
+   `ignored` / `unmapped_channel_account`. Run it as a one-off job or locally against the production
    database as its owner:
 
    ```bash

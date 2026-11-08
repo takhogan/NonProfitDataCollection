@@ -32,6 +32,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 
 from app.config import get_settings
+from app.crypto import ensure_ready
 from app.models.base import utcnow
 from app.whatsapp.adapter import get_adapter
 from app.whatsapp.extraction import get_extractor
@@ -101,6 +102,10 @@ def run() -> None:
 
     port = os.environ.get("PORT")
     health = start_health_server(int(port)) if port else None
+
+    # Unwrap the field-encryption root key now: a KMS or permission problem
+    # should stop the worker at startup, not halfway through a conversation.
+    ensure_ready()
 
     adapter = get_adapter()
 
