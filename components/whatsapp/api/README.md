@@ -108,6 +108,58 @@ in one transaction), household/case retrieval, **cross-organization isolation**
 WhatsApp webhook (verification handshake, signature check, event persistence,
 provider-message dedupe).
 
+### Deployed webhook (Google Cloud)
+
+The webhook runs in its own GCP project, deployed by
+[`deploy/gcloud-deploy.sh`](deploy/gcloud-deploy.sh). The script runs in re-runnable
+steps (`project apis registry build sql sa secrets migrate service url`).
+[`deploy/verify.sh`](deploy/verify.sh) runs the synthetic smoke tests.
+[DEPLOY.md](DEPLOY.md) is the general walkthrough. This deployment differs from it
+in a few ways: region `us-east4`, a dedicated runtime service account, and no
+worker service yet.
+
+| Resource | Value |
+|----------|-------|
+| Project | `csl-metron-webhook` (billing: Firebase Payment account) |
+| Region | `us-east4` (Virginia, outside Venezuela) |
+| Service | Cloud Run `whatsapp-webhook`, public, min 0 / max 3 instances |
+| Webhook URL | `https://whatsapp-webhook-3cgqtlfqwq-uk.a.run.app/webhooks/whatsapp` |
+| Database | Cloud SQL `aid-pg`, Postgres 16, db-f1-micro, 10 GB SSD, daily backups. No authorized networks: the only access path is the Cloud SQL connector. |
+| Migrations | Cloud Run Job `aid-migrate` (`python -m scripts.migrate`), run once per deploy and never on container start |
+| Secrets | Secret Manager (regional, us-east4): `database-url`, `jwt-secret`, `verify-token`, `whatsapp-app-secret`, `whatsapp-token`, `whatsapp-phone-id`, `seed-demo-password` |
+| Runtime SA | `webhook-run@csl-metron-webhook.iam.gserviceaccount.com`, with `roles/cloudsql.client` plus `secretAccessor` on each of those secrets only |
+
+The URL is public because Meta must reach it. Each `POST` is authenticated by its
+`X-Hub-Signature-256` HMAC: a missing or invalid signature returns **401** and
+nothing is stored. Production startup fails if any secret is missing.
+
+Redeploy after code changes (from this directory):
+
+```bash
+./deploy/gcloud-deploy.sh build && ./deploy/gcloud-deploy.sh migrate && ./deploy/gcloud-deploy.sh service
+./deploy/verify.sh
+```
+
+**Handing over to Meta.** The WhatsApp contributor owns these steps, not this script:
+
+1. Replace the placeholder secrets with real values. Each is read from stdin, so it
+   never appears on the command line:
+   ```bash
+   gcloud secrets versions add whatsapp-app-secret --project=csl-metron-webhook --data-file=-   # Meta App Secret
+   gcloud secrets versions add whatsapp-token      --project=csl-metron-webhook --data-file=-   # permanent token
+   gcloud secrets versions add whatsapp-phone-id   --project=csl-metron-webhook --data-file=-   # phone number id
+   ```
+   Then run `./deploy/gcloud-deploy.sh service` so a new revision picks them up.
+   Until the real `APP_SECRET` is in place, every genuine Meta `POST` gets 401.
+2. In Meta → WhatsApp → Configuration → Webhook, set the callback URL to the
+   webhook URL above. Set the verify token to the output of
+   `gcloud secrets versions access latest --secret=verify-token --project=csl-metron-webhook`.
+   Then subscribe to the `messages` field.
+
+Logging: uvicorn access logs are off, because they would include
+`hub.verify_token`. Cloud Run's own request log still records the full handshake
+URL, so rotate `verify-token` if that log is ever exposed.
+
 ## Architecture notes
 
 - **One APIRouter per endpoint group.** Implemented: `auth`, `me`, `households`,
