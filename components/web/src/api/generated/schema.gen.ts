@@ -331,6 +331,23 @@ export interface paths {
         patch: operations["patch_report_reports__report_id__patch"];
         trace?: never;
     };
+    "/campaigns/suggest-fields": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Suggest Campaign Fields */
+        post: operations["suggest_campaign_fields_campaigns_suggest_fields_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/campaigns": {
         parameters: {
             query?: never;
@@ -343,6 +360,23 @@ export interface paths {
         put?: never;
         /** Create Campaign */
         post: operations["create_campaign_campaigns_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/campaigns/{campaign_id}/results": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Campaign Results */
+        get: operations["campaign_results_campaigns__campaign_id__results_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -443,6 +477,8 @@ export interface components {
             starts_at?: string | null;
             /** Ends At */
             ends_at?: string | null;
+            /** Fields */
+            fields?: components["schemas"]["CampaignField"][];
         };
         /** CampaignCreate */
         CampaignCreate: {
@@ -456,6 +492,70 @@ export interface components {
             starts_at?: string | null;
             /** Ends At */
             ends_at?: string | null;
+            /** Fields */
+            fields?: components["schemas"]["CampaignField"][];
+        };
+        /**
+         * CampaignField
+         * @description One question a campaign asks. Core fields map to built-in intake concepts;
+         *     custom fields (boolean/number/choice/duration/text) are stored per-report in
+         *     the answers JSON and aggregated typed in the results endpoint.
+         */
+        CampaignField: {
+            /** Id */
+            id: string;
+            /** Label Es */
+            label_es: string;
+            /** Label En */
+            label_en: string;
+            /** Question Es */
+            question_es: string;
+            /** Question En */
+            question_en: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "core" | "boolean" | "number" | "choice" | "duration" | "text";
+            /** Core Key */
+            core_key?: ("area" | "has_power" | "has_water" | "household_size" | "urgent") | null;
+            /** Options */
+            options?: components["schemas"]["CampaignFieldOption"][] | null;
+            /** Unit */
+            unit?: string | null;
+            /**
+             * Required
+             * @default false
+             */
+            required: boolean;
+            /**
+             * Rationale
+             * @default
+             */
+            rationale: string;
+            /**
+             * Recommended
+             * @default false
+             */
+            recommended: boolean;
+        };
+        /** CampaignFieldOption */
+        CampaignFieldOption: {
+            /** Value */
+            value: string;
+            /** Label Es */
+            label_es: string;
+            /** Label En */
+            label_en: string;
+        };
+        /** CampaignResults */
+        CampaignResults: {
+            /** Campaign Id */
+            campaign_id: string;
+            /** Total Reports */
+            total_reports: number;
+            /** Aggregates */
+            aggregates: components["schemas"]["FieldAggregate"][];
         };
         /** Channel */
         Channel: {
@@ -618,6 +718,11 @@ export interface components {
              * @default true
              */
             audit_log_enabled: boolean;
+            /**
+             * Hide Individual Records
+             * @default false
+             */
+            hide_individual_records: boolean;
         };
         /** FeedItem */
         FeedItem: {
@@ -642,6 +747,36 @@ export interface components {
             items: components["schemas"]["FeedItem"][];
             /** Cursor */
             cursor?: string | null;
+        };
+        /** FieldAggregate */
+        FieldAggregate: {
+            /** Field Id */
+            field_id: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "core" | "boolean" | "number" | "choice" | "duration" | "text";
+            /** Label En */
+            label_en: string;
+            /** Label Es */
+            label_es: string;
+            /** Responses */
+            responses: number;
+            /** Yes Pct */
+            yes_pct?: number | null;
+            /** Avg */
+            avg?: number | null;
+            /** Min */
+            min?: number | null;
+            /** Max */
+            max?: number | null;
+            /** Median */
+            median?: number | null;
+            /** Counts */
+            counts?: {
+                [key: string]: number;
+            };
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -752,7 +887,7 @@ export interface components {
         /** ReportPatch */
         ReportPatch: {
             /** Status */
-            status?: ("draft" | "confirmed" | "review" | "superseded" | "withdrawn") | null;
+            status?: ("draft" | "confirmed" | "superseded" | "withdrawn" | "abandoned") | null;
             /** Notes */
             notes?: string | null;
             /** Assignee */
@@ -804,6 +939,30 @@ export interface components {
              * @enum {string}
              */
             org_type: "NGO" | "NPO" | "community" | "foundation" | "other";
+        };
+        /** SuggestFieldsRequest */
+        SuggestFieldsRequest: {
+            /** Name */
+            name: string;
+            /**
+             * Purpose
+             * @default
+             */
+            purpose: string;
+            /** Collection Template Id */
+            collection_template_id?: string | null;
+        };
+        /** SuggestFieldsResponse */
+        SuggestFieldsResponse: {
+            /** Fields */
+            fields: components["schemas"]["CampaignField"][];
+            /**
+             * Source
+             * @enum {string}
+             */
+            source: "llm" | "fallback";
+            /** Model */
+            model?: string | null;
         };
         /** TemplateQuestion */
         TemplateQuestion: {
@@ -1474,6 +1633,39 @@ export interface operations {
             };
         };
     };
+    suggest_campaign_fields_campaigns_suggest_fields_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SuggestFieldsRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SuggestFieldsResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_campaigns_campaigns_get: {
         parameters: {
             query?: never;
@@ -1514,6 +1706,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Campaign"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    campaign_results_campaigns__campaign_id__results_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                campaign_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CampaignResults"];
                 };
             };
             /** @description Validation Error */

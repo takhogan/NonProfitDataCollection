@@ -15,6 +15,9 @@ dependencies = [
     # Password hashing shared with whatsapp/api (same scheme).
     "passlib[bcrypt]>=1.7",
     "bcrypt<4.1",
+    # AI campaign-field suggestions (Structured Outputs). Optional at runtime:
+    # with no OPENAI_API_KEY the suggest endpoint falls back to template defaults.
+    "openai>=1.40",
 ]
 
 [project.optional-dependencies]

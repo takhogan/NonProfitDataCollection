@@ -56,6 +56,12 @@ export type TranscriptLine = S['TranscriptLine'];
 // Campaigns
 export type Campaign = S['Campaign'];
 export type CampaignCreate = S['CampaignCreate'];
+export type CampaignField = S['CampaignField'];
+export type CampaignFieldOption = S['CampaignFieldOption'];
+export type SuggestFieldsRequest = S['SuggestFieldsRequest'];
+export type SuggestFieldsResponse = S['SuggestFieldsResponse'];
+export type CampaignResults = S['CampaignResults'];
+export type FieldAggregate = S['FieldAggregate'];
 
 // Ask
 export type AskRequest = S['AskRequest'];

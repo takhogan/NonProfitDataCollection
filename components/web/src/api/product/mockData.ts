@@ -16,6 +16,7 @@ import type {
   RecommendedTemplates,
   ReportDetail,
 } from '../generated';
+import type { ReportStatus } from './client';
 
 export const DEMO_EMAIL = 'demo@metron.org';
 export const DEMO_PASSWORD = 'demo-pass';
@@ -167,13 +168,10 @@ export const CONTACTS_RAW: Contact[] = [
   { id: 'c4', name: 'Fredline Joseph', phone: '+13055550121', area: 'Little Haiti', consent_status: 'declined', last_contact_at: null },
 ];
 
-export const AREAS: AreaCount[] = [
-  { area: 'Little Haiti', reports: 18, without_power: 12, without_water: 4, urgent: 5 },
-  { area: 'Liberty City', reports: 14, without_power: 6, without_water: 9, urgent: 3 },
-  { area: 'Allapattah', reports: 11, without_power: 7, without_water: 2, urgent: 4 },
-  { area: 'Overtown', reports: 8, without_power: 3, without_water: 3, urgent: 1 },
-  { area: 'Hialeah', reports: 6, without_power: 2, without_water: 1, urgent: 0 },
-];
+// Neighborhood aggregates are derived from the full generated report set (see
+// `reportsSeed` / `areasFromReports`). The derived `AREAS` export is defined at
+// the very bottom of this file, after the generator's `const` tables, to avoid
+// a temporal-dead-zone error at module-eval time.
 
 /** Feed items, newest last. `received_at` strictly increasing for cursor polling. */
 export const FEED_SEED: FeedItem[] = [
@@ -190,7 +188,12 @@ export const FEED_INCOMING: FeedItem[] = [
   { id: 'msg-7', received_at: '2026-11-08T14:15:00+00:00', area: 'Liberty City', channel: 'whatsapp', preview: 'Mi vecina mayor necesita medicamentos, no puede salir.', tags: ['elderly', 'medical', 'urgent'], report_id: 'report-7' },
 ];
 
-export function reportsSeed(): ReportDetail[] {
+/**
+ * The four hand-authored anchor reports. These keep the live feed's `report_id`
+ * links valid and give the demo a few richly written transcripts. The generator
+ * below appends ~80 more so the Data explorer shows a full, real-feeling dataset.
+ */
+function anchorReports(): ReportDetail[] {
   return [
     {
       id: 'report-1', area: 'Little Haiti', status: 'confirmed', urgent: true,
@@ -245,6 +248,172 @@ export function reportsSeed(): ReportDetail[] {
   ];
 }
 
+// ---- Deterministic generator for the rest of the dataset -------------------
+// No Math.random(): a tiny seeded PRNG keeps the 80+ reports stable across
+// reloads (so sorting, aggregates and the demo are reproducible).
+
+/** Mulberry32 — small, fast, deterministic. */
+function makePrng(seed: number): () => number {
+  let a = seed >>> 0;
+  return () => {
+    a |= 0;
+    a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+const GEN_AREAS = ['Little Haiti', 'Liberty City', 'Allapattah', 'Overtown', 'Hialeah', 'Little Havana', 'Wynwood'] as const;
+// Relative weights so the distribution matches the dashboard's "hardest hit" story.
+const AREA_WEIGHTS: Record<(typeof GEN_AREAS)[number], number> = {
+  'Little Haiti': 20, 'Liberty City': 16, Allapattah: 13, Overtown: 10, Hialeah: 8, 'Little Havana': 9, Wynwood: 5,
+};
+const CHANNELS_GEN = ['whatsapp', 'whatsapp', 'whatsapp', 'sms', 'telegram', 'email'] as const; // whatsapp-heavy
+const SERVICE_STATES = ['available', 'unavailable', 'intermittent', 'unknown'] as const;
+
+// First names by community, so masked/hidden names still feel locally plausible.
+const FIRST_NAMES = ['Marie', 'Jean', 'Rose', 'Pierre', 'Carlos', 'María', 'Luis', 'Ana', 'José', 'Yolanda', 'Fritz', 'Guerline', 'Daniela', 'Miguel', 'Esperanza', 'Jacques', 'Nadège', 'Roberto', 'Carmen', 'Wilner', 'Sandra', 'Emmanuel', 'Lourdes', 'Ricardo'];
+const LAST_NAMES = ['Pierre', 'Joseph', 'Louis', 'Jean-Baptiste', 'Díaz', 'Rodríguez', 'Pérez', 'García', 'Fils-Aimé', 'Charles', 'Mompremier', 'Hernández', 'Castillo', 'Toussaint', 'Severin', 'Gómez', 'Alvarez', 'Noël', 'Métellus', 'Ramírez'];
+
+type Gen = () => number;
+const pick = <T,>(g: Gen, xs: readonly T[]): T => xs[Math.floor(g() * xs.length) % xs.length] as T;
+function weightedArea(g: Gen): (typeof GEN_AREAS)[number] {
+  const total = GEN_AREAS.reduce((s, a) => s + AREA_WEIGHTS[a], 0);
+  let r = g() * total;
+  for (const a of GEN_AREAS) {
+    r -= AREA_WEIGHTS[a];
+    if (r <= 0) return a;
+  }
+  return GEN_AREAS[0];
+}
+
+// Two-minute offset per report so `submitted_at` is strictly spread, newest first.
+const NOW_MS = Date.parse('2026-11-08T14:30:00+00:00');
+
+interface Shaped {
+  service_type: 'electricity' | 'piped_water';
+  service_status: (typeof SERVICE_STATES)[number];
+  power_status: (typeof SERVICE_STATES)[number];
+  water_status: (typeof SERVICE_STATES)[number];
+  urgent: boolean;
+  tags: string[];
+  needs: string[];
+  transcript: { reporter: string; days?: number };
+}
+
+function shape(g: Gen): Shaped {
+  const noPower = g() < 0.58;
+  const noWater = g() < 0.42;
+  const intermittent = !noPower && g() < 0.18;
+  const power_status: Shaped['power_status'] = noPower ? 'unavailable' : intermittent ? 'intermittent' : g() < 0.12 ? 'unknown' : 'available';
+  const water_status: Shaped['water_status'] = noWater ? 'unavailable' : g() < 0.1 ? 'intermittent' : g() < 0.15 ? 'unknown' : 'available';
+
+  // The report's headline service: whichever problem is the sharper one.
+  const primaryIsPower = (power_status === 'unavailable' || power_status === 'intermittent') || water_status === 'available';
+  const service_type: Shaped['service_type'] = primaryIsPower ? 'electricity' : 'piped_water';
+  const service_status = service_type === 'electricity' ? power_status : water_status;
+
+  const elderly = g() < 0.3;
+  const medical = g() < 0.16;
+  const urgent = (noPower && medical) || (noWater && g() < 0.4) || (elderly && noPower && g() < 0.5) || g() < 0.08;
+
+  const tags: string[] = [];
+  if (power_status === 'unavailable') tags.push('no_power');
+  if (power_status === 'intermittent') tags.push('intermittent_power');
+  if (water_status === 'unavailable') tags.push('no_water');
+  if (elderly) tags.push('elderly');
+  if (medical) tags.push('medical');
+  if (urgent && !tags.includes('urgent')) tags.push('urgent');
+
+  const needs = tags.filter((t) => t !== 'urgent');
+  const days = water_status === 'unavailable' ? 1 + Math.floor(g() * 4) : undefined;
+
+  let reporter: string;
+  if (medical) reporter = 'Hay una persona enferma en casa y necesita atención.';
+  else if (noPower && elderly) reporter = 'No tenemos luz y hay adultos mayores en casa.';
+  else if (noPower) reporter = 'Seguimos sin electricidad en la cuadra.';
+  else if (noWater) reporter = 'No hay agua en el edificio.';
+  else if (power_status === 'intermittent') reporter = 'La luz va y viene todo el día.';
+  else reporter = 'Ya volvió el servicio, gracias por preguntar.';
+
+  return { service_type, service_status, power_status, water_status, urgent, tags, needs, transcript: { reporter, days } };
+}
+
+/** Build the full report dataset: 4 anchors + ~80 generated, newest first. */
+export function reportsSeed(): ReportDetail[] {
+  const g = makePrng(0xa1d50bed);
+  const anchors = anchorReports();
+  const COUNT = 80;
+  const generated: ReportDetail[] = [];
+
+  const statuses: ReportStatus[] = ['confirmed', 'confirmed', 'confirmed', 'draft', 'draft', 'superseded', 'withdrawn', 'abandoned'];
+
+  for (let i = 0; i < COUNT; i++) {
+    const n = i + 5; // report-5 … (report-1..4 are anchors)
+    const area = weightedArea(g);
+    const sh = shape(g);
+    const status = pick(g, statuses);
+    const household = 1 + Math.floor(g() * 7);
+    // Spread across the last ~10 days, newest first; anchors sit at the very top.
+    const minutesAgo = 90 + i * 150 + Math.floor(g() * 90);
+    const at = new Date(NOW_MS - minutesAgo * 60_000).toISOString();
+    const channel = pick(g, CHANNELS_GEN);
+    const first = pick(g, FIRST_NAMES);
+    const last = pick(g, LAST_NAMES);
+    const tail = String(100 + Math.floor(g() * 900)).padStart(4, '0');
+
+    const transcript = [
+      { from: 'reporter', at, text: sh.transcript.reporter },
+      { from: 'bot', at, text: '¿Cuántas personas hay en casa?' },
+      { from: 'reporter', at, text: household === 1 ? 'Vivo solo/a.' : `Somos ${household}.` },
+    ];
+
+    generated.push({
+      id: `report-${n}`,
+      area,
+      status,
+      urgent: sh.urgent,
+      submitted_at: at,
+      source_channel: channel,
+      service_type: sh.service_type,
+      service_status: sh.service_status,
+      tags: sh.tags,
+      reporter_name: `${first} ${last}`,
+      reporter_phone: `+1305555${tail}`,
+      assignee: null,
+      notes: sh.tags.includes('medical') ? 'Medical need flagged — prioritize.' : '',
+      transcript,
+      extracted_fields: {
+        power_status: sh.power_status,
+        water_status: sh.water_status,
+        household_size: household,
+        urgent_needs: sh.needs,
+        days_without_water: sh.transcript.days ?? null,
+      },
+    });
+  }
+
+  return [...anchors, ...generated];
+}
+
+/** Aggregate the full report set by neighborhood — keeps the dashboard honest. */
+export function areasFromReports(reports: ReportDetail[]): AreaCount[] {
+  const by = new Map<string, AreaCount>();
+  for (const r of reports) {
+    const area = r.area ?? 'Unknown';
+    const row = by.get(area) ?? { area, reports: 0, without_power: 0, without_water: 0, urgent: 0 };
+    row.reports += 1;
+    if (r.service_type === 'electricity' && r.service_status === 'unavailable') row.without_power += 1;
+    else if ((r.extracted_fields?.power_status as string) === 'unavailable') row.without_power += 1;
+    if (r.service_type === 'piped_water' && r.service_status === 'unavailable') row.without_water += 1;
+    else if ((r.extracted_fields?.water_status as string) === 'unavailable') row.without_water += 1;
+    if (r.urgent) row.urgent += 1;
+    by.set(area, row);
+  }
+  return [...by.values()].sort((a, b) => b.reports - a.reports);
+}
+
 export function campaignsSeed(): Campaign[] {
   return [
     {
@@ -254,3 +423,8 @@ export function campaignsSeed(): Campaign[] {
     },
   ];
 }
+
+// Derived last, after every generator `const`/`function` above is initialized,
+// so there is no temporal-dead-zone access during module evaluation. The
+// dashboard's `getDashboardAreas` reads this; it always matches the Data grid.
+export const AREAS: AreaCount[] = areasFromReports(reportsSeed());

@@ -22,6 +22,8 @@ import type {
   ReportPatch,
   ReportSummary,
   SignupRequest,
+  SuggestFieldsRequest,
+  SuggestFieldsResponse,
   TokenResponse,
 } from '../generated';
 import type { ApiErrorBody, ProductApiClient, ReportStatus } from './client';
@@ -162,6 +164,9 @@ export class HttpProductClient implements ProductApiClient {
   }
   createCampaign(b: CampaignCreate) {
     return this.request<Campaign>('POST', '/campaigns', b);
+  }
+  suggestCampaignFields(b: SuggestFieldsRequest) {
+    return this.request<SuggestFieldsResponse>('POST', '/campaigns/suggest-fields', b);
   }
 
   // Ask

@@ -33,10 +33,12 @@ import type {
   ReportPatch,
   ReportSummary,
   SignupRequest,
+  SuggestFieldsRequest,
+  SuggestFieldsResponse,
   TokenResponse,
 } from '../generated';
 
-export type ReportStatus = 'draft' | 'confirmed' | 'review' | 'superseded' | 'withdrawn';
+export type ReportStatus = 'draft' | 'confirmed' | 'superseded' | 'withdrawn' | 'abandoned';
 
 export interface ProductApiClient {
   // Auth
@@ -78,6 +80,7 @@ export interface ProductApiClient {
   // Campaigns
   getCampaigns(): Promise<Campaign[]>;
   createCampaign(body: CampaignCreate): Promise<Campaign>;
+  suggestCampaignFields(body: SuggestFieldsRequest): Promise<SuggestFieldsResponse>;
 
   // Ask
   ask(body: AskRequest): Promise<AskResponse>;

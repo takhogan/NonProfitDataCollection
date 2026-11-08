@@ -8,17 +8,17 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
+from dash.config import get_settings
 from dash.context import RequestContext
 from dash.deps import get_context, get_db
 from dash.errors import NotFound
 from dash.fakestore import MIAMI_AREAS
+from dash import campaign_fields as CF
 from dash import read_models as RM
 from dash import schemas as S
+from dash import settings_store
 
 router = APIRouter(tags=["dashboard"])
-
-# In-memory campaign store (fake) keyed by org.
-_CAMPAIGNS: dict[str, list[dict]] = {}
 
 
 def _apply_privacy(ctx: RequestContext, row: dict) -> dict:
@@ -147,30 +147,82 @@ def patch_report(report_id: str, body: S.ReportPatch, ctx: RequestContext = Depe
 
 
 # ---- Campaigns -------------------------------------------------------------
+#
+# Campaigns are stored durably as a JSON list in the shared policy_version table
+# (via settings_store) — no new tables, no migration. Each campaign carries its
+# AI-suggested `fields` so GET returns them and results can be aggregated typed.
+
+_CAMPAIGNS_SETTING = "campaigns"
+
+
+def _default_campaigns() -> list[dict]:
+    """Seed shown to a brand-new org so the demo isn't empty."""
+    return [{
+        "id": "camp-1", "name": "November Outage Watch",
+        "collection_template_id": "power_water_outages",
+        "areas": MIAMI_AREAS[:4], "status": "active",
+        "starts_at": "2026-11-01T00:00:00+00:00", "ends_at": None,
+        "fields": [f.model_dump() for f in CF.template_default_fields("power_water_outages")],
+    }]
+
+
+def _load_campaigns(db: Session, org_id: str) -> list[dict]:
+    stored = settings_store.get_setting(db, org_id, _CAMPAIGNS_SETTING)
+    if stored is None:
+        return _default_campaigns()
+    return list(stored.get("campaigns", []))
+
+
+def _save_campaigns(db: Session, org_id: str, campaigns: list[dict]) -> None:
+    settings_store.put_setting(db, org_id, _CAMPAIGNS_SETTING, {"campaigns": campaigns})
+
+
+@router.post("/campaigns/suggest-fields", response_model=S.SuggestFieldsResponse)
+def suggest_campaign_fields(
+    body: S.SuggestFieldsRequest,
+    ctx: RequestContext = Depends(get_context),
+    db: Session = Depends(get_db),
+) -> S.SuggestFieldsResponse:
+    settings = get_settings()
+    org_profile = settings_store.get_setting(db, ctx.org_id, "profile")
+    return CF.suggest_fields(
+        body, org_profile,
+        api_key=settings.openai_api_key, model=settings.openai_model,
+    )
+
 
 @router.post("/campaigns", response_model=S.Campaign)
-def create_campaign(body: S.CampaignCreate, ctx: RequestContext = Depends(get_context)) -> S.Campaign:
+def create_campaign(body: S.CampaignCreate, ctx: RequestContext = Depends(get_context),
+                    db: Session = Depends(get_db)) -> S.Campaign:
+    campaigns = _load_campaigns(db, ctx.org_id)
+    # Keep seeded campaigns durable the first time we write.
     camp = {
-        "id": f"camp-{len(_CAMPAIGNS.get(ctx.org_id, [])) + 1}",
+        "id": f"camp-{len(campaigns) + 1}",
         "name": body.name, "collection_template_id": body.collection_template_id,
         "areas": body.areas, "status": "active",
         "starts_at": body.starts_at, "ends_at": body.ends_at,
+        "fields": [f.model_dump() for f in body.fields],
     }
-    _CAMPAIGNS.setdefault(ctx.org_id, []).append(camp)
+    campaigns.append(camp)
+    _save_campaigns(db, ctx.org_id, campaigns)
     return S.Campaign(**camp)
 
 
 @router.get("/campaigns", response_model=list[S.Campaign])
-def list_campaigns(ctx: RequestContext = Depends(get_context)) -> list[S.Campaign]:
-    seeded = _CAMPAIGNS.get(ctx.org_id)
-    if not seeded:
-        seeded = [{
-            "id": "camp-1", "name": "November Outage Watch",
-            "collection_template_id": "power_water_outages",
-            "areas": MIAMI_AREAS[:4], "status": "active",
-            "starts_at": "2026-11-01T00:00:00+00:00", "ends_at": None,
-        }]
-    return [S.Campaign(**c) for c in seeded]
+def list_campaigns(ctx: RequestContext = Depends(get_context),
+                   db: Session = Depends(get_db)) -> list[S.Campaign]:
+    return [S.Campaign(**c) for c in _load_campaigns(db, ctx.org_id)]
+
+
+@router.get("/campaigns/{campaign_id}/results", response_model=S.CampaignResults)
+def campaign_results(campaign_id: str, ctx: RequestContext = Depends(get_context),
+                     db: Session = Depends(get_db)) -> S.CampaignResults:
+    camp = next((c for c in _load_campaigns(db, ctx.org_id) if c["id"] == campaign_id), None)
+    if camp is None:
+        raise NotFound("campaign not found")
+    fields = [S.CampaignField(**f) for f in camp.get("fields", [])]
+    answers = RM.campaign_answers(db, ctx.org_id, campaign_id=campaign_id)
+    return CF.aggregate_results(campaign_id, fields, answers)
 
 
 # ---- Ask (NL question; mocked) --------------------------------------------

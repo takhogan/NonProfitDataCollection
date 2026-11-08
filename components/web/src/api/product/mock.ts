@@ -5,6 +5,7 @@ import type {
   BotConfig,
   Campaign,
   CampaignCreate,
+  CampaignField,
   ChannelsConfig,
   CollectionTemplate,
   Contact,
@@ -23,6 +24,8 @@ import type {
   ReportPatch,
   ReportSummary,
   SignupRequest,
+  SuggestFieldsRequest,
+  SuggestFieldsResponse,
   TokenResponse,
 } from '../generated';
 import type { ProductApiClient, ReportStatus } from './client';
@@ -119,6 +122,7 @@ export class MockProductClient implements ProductApiClient {
       dataProtection: {
         preset: 'standard', store_names: true, location_precision: 'precise', raw_message_retention_days: 90,
         mask_phone_numbers: false, redact_exports: false, individual_records_roles: ['org_admin', 'coordinator'], audit_log_enabled: true,
+        hide_individual_records: false,
       },
       campaigns: campaignsSeed(),
     });
@@ -314,9 +318,16 @@ export class MockProductClient implements ProductApiClient {
     const camp: Campaign = {
       id: `camp-${this.campaigns.length + 1}`, name: b.name, collection_template_id: b.collection_template_id,
       areas: b.areas ?? [], status: 'active', starts_at: b.starts_at ?? new Date().toISOString(), ends_at: b.ends_at ?? null,
+      fields: b.fields ?? [],
     };
     this.campaigns = [camp, ...this.campaigns];
     return clone(camp);
+  }
+  async suggestCampaignFields(b: SuggestFieldsRequest): Promise<SuggestFieldsResponse> {
+    await this.delay();
+    const tpl = COLLECTION_TEMPLATES.find((t) => t.id === b.collection_template_id) ?? COLLECTION_TEMPLATES[0];
+    const fields = tpl ? fieldsFromTemplate(tpl) : [];
+    return { fields, source: 'fallback', model: null };
   }
 
   // ---- Ask ----
@@ -328,4 +339,36 @@ export class MockProductClient implements ProductApiClient {
       data: { top_area: top.area, urgent_count: top.urgent, question: b.question },
     };
   }
+}
+
+/** Synthesize CampaignFields from a collection template's questions (mock fallback
+ * for POST /campaigns/suggest-fields). Area is always present and first. */
+function fieldsFromTemplate(tpl: CollectionTemplate): CampaignField[] {
+  const area: CampaignField = {
+    id: 'area', label_es: 'Zona / barrio', label_en: 'Area / neighborhood',
+    question_es: '¿En qué zona o barrio se encuentra?', question_en: 'Which area or neighborhood are you in?',
+    kind: 'core', core_key: 'area', options: null, unit: null, required: true,
+    rationale: 'Every report is mapped by area.', recommended: true,
+  };
+  const KIND: Record<string, CampaignField['kind']> = {
+    boolean: 'boolean', number: 'number', choice: 'choice', text: 'text', location: 'core',
+  };
+  const custom: CampaignField[] = (tpl.questions ?? []).map((q, i) => {
+    const kind = KIND[q.field_type] ?? 'text';
+    return {
+      id: q.key,
+      label_es: q.label, label_en: q.label,
+      question_es: q.label, question_en: q.label,
+      kind,
+      core_key: null,
+      options: kind === 'choice' && q.options
+        ? q.options.map((o) => ({ value: o, label_es: o, label_en: o }))
+        : null,
+      unit: kind === 'number' ? '' : null,
+      required: false,
+      rationale: 'Suggested from your selected template.',
+      recommended: i < 3,
+    };
+  });
+  return [area, ...custom].slice(0, 8);
 }

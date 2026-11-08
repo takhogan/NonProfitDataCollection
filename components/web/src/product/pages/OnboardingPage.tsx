@@ -43,6 +43,7 @@ export default function OnboardingPage() {
   const [protection, setProtection] = useState<DataProtectionConfig>({
     preset: 'standard', store_names: true, location_precision: 'precise', raw_message_retention_days: 90,
     mask_phone_numbers: false, redact_exports: false, individual_records_roles: ['org_admin', 'coordinator'], audit_log_enabled: true,
+    hide_individual_records: false,
   });
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);

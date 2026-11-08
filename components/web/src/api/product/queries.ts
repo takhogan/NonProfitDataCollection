@@ -13,6 +13,7 @@ import type {
   DataProtectionConfig,
   OrgProfile,
   ReportPatch,
+  SuggestFieldsRequest,
 } from '../generated';
 
 export function useMe() {
@@ -155,6 +156,11 @@ export function useCreateCampaign() {
     mutationFn: (b: CampaignCreate) => api.createCampaign(b),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['p', 'campaigns'] }),
   });
+}
+
+export function useSuggestCampaignFields() {
+  const api = useProductApi();
+  return useMutation({ mutationFn: (b: SuggestFieldsRequest) => api.suggestCampaignFields(b) });
 }
 
 export function useAsk() {

@@ -19,6 +19,7 @@ REPO="${REPO:-aid}"
 SQL_INSTANCE="${SQL_INSTANCE:-aid-pg}"
 RUN_SA_NAME="${RUN_SA_NAME:-webhook-run}"           # reuse the webhook runtime SA
 WEB_ORIGINS="${WEB_ORIGINS:-https://dashboard.example.org,http://localhost:5173}"
+OPENAI_MODEL="${OPENAI_MODEL:-gpt-4o-mini}"         # model for campaign-field suggestions
 
 IMAGE_TAG="${IMAGE_TAG:-$(git rev-parse --short HEAD 2>/dev/null || date +%s)}"
 IMAGE="$REGION-docker.pkg.dev/$PROJECT_ID/$REPO/dashboard-api:$IMAGE_TAG"
@@ -26,9 +27,12 @@ RUN_SA="$RUN_SA_NAME@$PROJECT_ID.iam.gserviceaccount.com"
 
 # Shared secrets already created by whatsapp/api's deploy. The dashboard reads
 # the SAME database-url and jwt-secret so tokens and data interoperate.
+# openai-api-key is this service's own secret (create it before deploying; see
+# deploy/README or the secret-creation commands handed over with this change).
 SECRET_MAP=(
   "database-url:DATABASE_URL"
   "jwt-secret:JWT_SECRET"
+  "openai-api-key:OPENAI_API_KEY"
 )
 
 g() { gcloud --project="$PROJECT_ID" --quiet "$@"; }
@@ -71,7 +75,7 @@ step_service() {
     --allow-unauthenticated --port=8080 \
     --min-instances=0 --max-instances=3 --cpu=1 --memory=512Mi \
     --set-cloudsql-instances="$(sql_conn)" \
-    --set-env-vars="^@^APP_ENV=production@WEB_ORIGINS=$WEB_ORIGINS" \
+    --set-env-vars="^@^APP_ENV=production@WEB_ORIGINS=$WEB_ORIGINS@OPENAI_MODEL=$OPENAI_MODEL" \
     "$(secret_flags)"
 }
 

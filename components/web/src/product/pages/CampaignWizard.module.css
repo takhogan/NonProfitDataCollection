@@ -1,0 +1,342 @@
+/* Campaign creation wizard — Apple-style: calm surfaces, inset-grouped lists,
+   a single accent, generous spacing. Mirrors Onboarding.module.css idioms. */
+
+.layout {
+  display: grid;
+  grid-template-columns: 1fr minmax(360px, 460px);
+  gap: 2rem;
+  align-items: start;
+}
+@media (max-width: 900px) {
+  .layout { grid-template-columns: 1fr; }
+}
+
+/* ---- Wizard card ---- */
+.card {
+  background: var(--surface, #fff);
+  border: 1px solid var(--border, #e6e6ea);
+  border-radius: 18px;
+  padding: 1.5rem 1.5rem 1.25rem;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.topBar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 1.75rem;
+  margin-bottom: 0.5rem;
+}
+.back {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  background: none;
+  border: none;
+  color: var(--muted, #6b6b73);
+  cursor: pointer;
+  padding: 0.25rem 0.25rem 0.25rem 0;
+  font-size: 0.9rem;
+  border-radius: 8px;
+}
+.back:hover { color: var(--text, #1a1a1f); }
+
+.steps {
+  display: flex;
+  gap: 0.4rem;
+  margin-left: auto;
+}
+.stepDot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: var(--border, #d9d9de);
+}
+.stepDotActive { background: var(--accent, #0a84ff); }
+.stepDotDone { background: var(--accent, #0a84ff); opacity: 0.4; }
+
+.title {
+  font-size: 1.4rem;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  margin: 0.25rem 0 0.25rem;
+}
+.sub {
+  color: var(--muted, #6b6b73);
+  margin: 0 0 1.25rem;
+  font-size: 0.95rem;
+}
+
+.field { margin-bottom: 1rem; }
+.field > label {
+  display: block;
+  font-size: 0.85rem;
+  font-weight: 550;
+  margin-bottom: 0.4rem;
+  color: var(--text, #1a1a1f);
+}
+.field input,
+.field textarea {
+  width: 100%;
+  border: 1px solid var(--border, #d9d9de);
+  border-radius: 10px;
+  padding: 0.6rem 0.7rem;
+  font: inherit;
+  background: var(--surface, #fff);
+  color: var(--text, #1a1a1f);
+}
+.field textarea { resize: vertical; min-height: 5rem; line-height: 1.45; }
+.field input:focus,
+.field textarea:focus {
+  outline: none;
+  border-color: var(--accent, #0a84ff);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent, #0a84ff) 18%, transparent);
+}
+
+.err {
+  background: color-mix(in srgb, #ff3b30 10%, transparent);
+  color: #c0271d;
+  border-radius: 10px;
+  padding: 0.55rem 0.75rem;
+  font-size: 0.88rem;
+  margin-bottom: 1rem;
+}
+
+/* ---- Inset-grouped list (fields, channels) ---- */
+.group {
+  border: 1px solid var(--border, #e6e6ea);
+  border-radius: 14px;
+  overflow: hidden;
+  background: var(--surface, #fff);
+}
+.groupTitle {
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted, #8a8a90);
+  margin: 1.25rem 0 0.5rem;
+}
+.row {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 0.75rem 0.9rem;
+  border-top: 1px solid var(--border, #ececef);
+}
+.row:first-child { border-top: none; }
+.rowIcon { color: var(--muted, #6b6b73); flex: none; }
+.rowBody { min-width: 0; flex: 1; }
+.rowLabel {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 550;
+  font-size: 0.95rem;
+}
+.rowSub {
+  color: var(--muted, #8a8a90);
+  font-size: 0.82rem;
+  margin-top: 0.15rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.kindTag {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--muted, #6b6b73);
+  background: var(--chip-bg, #f2f2f5);
+  border-radius: 6px;
+  padding: 0.1rem 0.4rem;
+}
+.recTag {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--accent, #0a84ff);
+  background: color-mix(in srgb, var(--accent, #0a84ff) 12%, transparent);
+  border-radius: 6px;
+  padding: 0.1rem 0.4rem;
+}
+.lockedNote { font-size: 0.78rem; color: var(--muted, #8a8a90); flex: none; }
+
+/* ---- iOS toggle ---- */
+.toggle {
+  --w: 44px; --h: 26px;
+  position: relative;
+  width: var(--w); height: var(--h);
+  flex: none;
+  border-radius: 999px;
+  border: none;
+  background: var(--border, #d9d9de);
+  cursor: pointer;
+  transition: background 0.18s ease;
+  padding: 0;
+}
+.toggleOn { background: var(--accent, #34c759); }
+.toggle::after {
+  content: '';
+  position: absolute;
+  top: 2px; left: 2px;
+  width: calc(var(--h) - 4px); height: calc(var(--h) - 4px);
+  background: #fff;
+  border-radius: 50%;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  transition: transform 0.18s ease;
+}
+.toggleOn::after { transform: translateX(calc(var(--w) - var(--h))); }
+.toggle:disabled { opacity: 0.55; cursor: not-allowed; }
+
+/* ---- Channel rows ---- */
+.chanRow {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 0.8rem 0.9rem;
+  border-top: 1px solid var(--border, #ececef);
+  width: 100%;
+  background: none;
+  border-left: none; border-right: none;
+  text-align: left;
+  cursor: pointer;
+  color: inherit;
+  font: inherit;
+}
+.chanRow:first-child { border-top: none; }
+.chanRow:disabled { cursor: not-allowed; color: var(--muted, #9a9aa0); }
+.chanName { font-weight: 550; flex: 1; }
+.chanSel {
+  color: var(--accent, #0a84ff);
+  flex: none;
+}
+.soon {
+  font-size: 0.76rem;
+  color: var(--muted, #9a9aa0);
+  flex: none;
+}
+
+/* ---- Segmented wrapper spacing ---- */
+.segWrap { margin: 1rem 0 0.75rem; }
+
+/* ---- Dropzone ---- */
+.drop {
+  border: 1.5px dashed var(--border, #cfcfd6);
+  border-radius: 14px;
+  padding: 1.75rem 1rem;
+  text-align: center;
+  color: var(--muted, #6b6b73);
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.dropActive {
+  border-color: var(--accent, #0a84ff);
+  background: color-mix(in srgb, var(--accent, #0a84ff) 6%, transparent);
+}
+.dropMain { font-weight: 550; color: var(--text, #1a1a1f); }
+.dropHint { font-size: 0.82rem; margin-top: 0.25rem; }
+
+/* ---- Preview table ---- */
+.previewTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+  margin-top: 0.5rem;
+}
+.previewTable th,
+.previewTable td {
+  border: 1px solid var(--border, #ececef);
+  padding: 0.35rem 0.5rem;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 10rem;
+}
+.previewTable th { background: var(--chip-bg, #f6f6f8); font-weight: 600; }
+.colPick {
+  cursor: pointer;
+}
+.colPickOn th { outline: 2px solid var(--accent, #0a84ff); }
+
+.helper {
+  font-size: 0.82rem;
+  color: var(--muted, #6b6b73);
+  margin: 0.6rem 0 0;
+}
+
+/* ---- Result summary ---- */
+.summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 0.75rem;
+  margin: 0.9rem 0 0.25rem;
+  font-size: 0.9rem;
+}
+.summaryStat { font-weight: 600; }
+.summaryOk { color: #248a3d; }
+.summaryWarn { color: #b25000; }
+.summaryBad { color: #c0271d; }
+.summaryMuted { color: var(--muted, #8a8a90); }
+
+.fixBlock {
+  margin-top: 0.75rem;
+  border: 1px solid color-mix(in srgb, #ff9500 40%, var(--border, #e6e6ea));
+  border-radius: 12px;
+  padding: 0.75rem 0.9rem;
+  background: color-mix(in srgb, #ff9500 6%, transparent);
+}
+.fixHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+.fixTitle { font-weight: 600; font-size: 0.88rem; }
+.fixList { display: flex; flex-direction: column; gap: 0.4rem; }
+.fixRow { display: flex; align-items: center; gap: 0.5rem; }
+.fixRow input {
+  flex: 1;
+  border: 1px solid var(--border, #d9d9de);
+  border-radius: 8px;
+  padding: 0.35rem 0.5rem;
+  font: inherit;
+}
+.miniBtn {
+  font-size: 0.8rem;
+  border: 1px solid var(--border, #d9d9de);
+  background: var(--surface, #fff);
+  border-radius: 8px;
+  padding: 0.3rem 0.6rem;
+  cursor: pointer;
+}
+.linkBtn {
+  background: none; border: none; cursor: pointer;
+  color: var(--accent, #0a84ff); font: inherit; padding: 0.2rem 0.3rem;
+  border-radius: 6px;
+}
+
+/* ---- Consent + nav ---- */
+.consent {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  margin: 1.25rem 0 0.5rem;
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+.consent input { margin-top: 0.15rem; flex: none; width: 1.1rem; height: 1.1rem; }
+
+.nav {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.6rem;
+  margin-top: 1.25rem;
+}
+.manualRow { display: flex; gap: 0.5rem; }
+.manualRow input { flex: 1; }
+
+/* ---- Existing campaigns list (beside the wizard) ---- */
+.listTitle {
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin: 0 0 0.75rem;
+  color: var(--text, #1a1a1f);
+}

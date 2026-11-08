@@ -1,0 +1,258 @@
+.sidebar {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  width: 236px;
+  flex-shrink: 0;
+  background: var(--surface);
+  border-right: 0.5px solid var(--hairline);
+  display: flex;
+  flex-direction: column;
+  transition: width 0.2s ease;
+  overflow: hidden;
+}
+.collapsed {
+  width: 60px;
+}
+
+.top {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.85rem 0.85rem 0.6rem;
+  min-height: 56px;
+}
+.brand {
+  font-size: 1.2rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--text);
+  text-decoration: none;
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.brand:hover {
+  text-decoration: none;
+}
+.collapsed .brand {
+  text-align: center;
+  font-size: 1.15rem;
+}
+.iconBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  min-height: 0;
+  padding: 0;
+  border-radius: 7px;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.iconBtn:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+.collapsed .collapseBtn {
+  display: none;
+}
+.mobileClose {
+  display: none;
+}
+
+.nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 0.4rem 0.6rem;
+  flex: 1;
+  overflow-y: auto;
+}
+.navItem {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0.5rem 0.6rem;
+  border-radius: 8px;
+  color: var(--muted);
+  text-decoration: none;
+  font-size: 0.93rem;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.navItem:hover {
+  background: var(--surface-2);
+  color: var(--text);
+  text-decoration: none;
+}
+.navItem[aria-current='page'] {
+  background: var(--card);
+  color: var(--text);
+  font-weight: 500;
+  box-shadow: 0 0 0 0.5px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+.navIcon {
+  flex-shrink: 0;
+  color: inherit;
+}
+.navLabel {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.collapsed .navLabel {
+  display: none;
+}
+.collapsed .navItem {
+  justify-content: center;
+  padding: 0.5rem;
+}
+
+/* Footer */
+.footer {
+  padding: 0.6rem 0.6rem 0.9rem;
+  border-top: 0.5px solid var(--hairline);
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.org {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.3rem 0.5rem;
+  min-width: 0;
+}
+.orgInitial {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 0.82rem;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+.orgName {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--text);
+  letter-spacing: -0.01em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.collapsed .orgName,
+.collapsed .status,
+.collapsed .badge {
+  display: none;
+}
+.status {
+  padding: 0 0.5rem;
+}
+.badge {
+  padding: 0 0.5rem;
+}
+.footActions {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 0.15rem;
+}
+.footBtn {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0.45rem 0.6rem;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 0.9rem;
+  min-height: 0;
+  text-align: left;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.footBtn:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+.footBtnIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 19px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+.collapsed .footBtn {
+  justify-content: center;
+  padding: 0.45rem;
+}
+
+/* Mobile drawer */
+.scrim {
+  display: none;
+}
+@media (max-width: 760px) {
+  .sidebar {
+    position: fixed;
+    left: 0;
+    top: 0;
+    z-index: 60;
+    width: 256px;
+    transform: translateX(-100%);
+    transition: transform 0.22s ease;
+    box-shadow: 0 0 40px rgba(0, 0, 0, 0.18);
+  }
+  .sidebar.collapsed {
+    width: 256px;
+  }
+  .collapsed .navLabel,
+  .collapsed .orgName,
+  .collapsed .status,
+  .collapsed .badge {
+    display: block;
+  }
+  .collapsed .navItem {
+    justify-content: flex-start;
+    padding: 0.5rem 0.6rem;
+  }
+  .collapsed .footBtn {
+    justify-content: flex-start;
+    padding: 0.45rem 0.6rem;
+  }
+  .collapsed .brand {
+    text-align: left;
+    font-size: 1.2rem;
+  }
+  .mobileOpen {
+    transform: translateX(0);
+  }
+  .collapseBtn {
+    display: none;
+  }
+  .collapsed .collapseBtn {
+    display: none;
+  }
+  .mobileClose {
+    display: inline-flex;
+  }
+  .scrim {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 55;
+    background: rgba(0, 0, 0, 0.3);
+  }
+}

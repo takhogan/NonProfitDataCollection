@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Bot } from 'lucide-react';
+import { Bot, Globe, ScanText, GitBranch, LifeBuoy } from 'lucide-react';
 import { useProductApi } from '../../api/product/context';
 import { useCollectionTemplates, useMe, usePutBotConfig } from '../../api/product/queries';
 import { useI18n } from '../../locales/i18n';
@@ -39,7 +39,6 @@ export default function BotEditorPage() {
   }, [api, loaded, orgName, lang, t]);
 
   const set = <K extends keyof BotConfig>(k: K, v: BotConfig[K]) => setCfg((c) => ({ ...c, [k]: v }));
-  const template = templates.data?.find((tp) => tp.id === cfg.collection_template_id);
 
   return (
     <>
@@ -54,13 +53,11 @@ export default function BotEditorPage() {
             <textarea id="b-greeting" value={cfg.greeting ?? ''} onChange={(e) => set('greeting', e.target.value)} style={{ minHeight: 90 }} />
           </div>
           <div className={s.field}>
-            <label htmlFor="b-lang">{t('bot.language')}</label>
-            <select id="b-lang" value={cfg.language_default ?? 'es'} onChange={(e) => set('language_default', e.target.value)}>
-              <option value="es">Español</option>
-              <option value="en">English</option>
-              <option value="ht">Kreyòl</option>
-              <option value="pt">Português</option>
-            </select>
+            <label>{t('bot.languageLabel')}</label>
+            <div className={s.langRow}>
+              <Globe size={17} strokeWidth={1.5} className={s.langIcon} aria-hidden />
+              <span>{t('bot.languageAny')}</span>
+            </div>
           </div>
           <div className={s.field}>
             <label htmlFor="b-tpl">{t('bot.template')}</label>
@@ -78,6 +75,23 @@ export default function BotEditorPage() {
             <input id="b-handoff" type="checkbox" checked={cfg.human_handoff_enabled ?? true} onChange={(e) => set('human_handoff_enabled', e.target.checked)} />
             <label htmlFor="b-handoff" style={{ margin: 0 }}>{t('bot.handoff')}</label>
           </div>
+
+          <h2 className={s.decisionsTitle}>{t('bot.decisions.title')}</h2>
+          <div className={s.decisions}>
+            <div className={s.decisionRow}>
+              <ScanText size={18} strokeWidth={1.5} className={s.decisionIcon} aria-hidden />
+              <span>{t('bot.decisions.ai')}</span>
+            </div>
+            <div className={s.decisionRow}>
+              <GitBranch size={18} strokeWidth={1.5} className={s.decisionIcon} aria-hidden />
+              <span>{t('bot.decisions.rules')}</span>
+            </div>
+            <div className={s.decisionRow}>
+              <LifeBuoy size={18} strokeWidth={1.5} className={s.decisionIcon} aria-hidden />
+              <span>{t('bot.decisions.human')}</span>
+            </div>
+          </div>
+
           <div className={s.saveBar}>
             <button type="button" disabled={save.isPending} onClick={() => save.mutate(cfg)}>
               {save.isPending ? t('common.saving') : t('common.save')}
@@ -86,7 +100,7 @@ export default function BotEditorPage() {
           </div>
         </div>
 
-        {/* WhatsApp-style preview */}
+        {/* WhatsApp-style preview — multilingual example */}
         <div>
           <p className="muted" style={{ marginTop: 0, marginBottom: '0.6rem', fontSize: '0.88rem' }}>{t('bot.previewHint')}</p>
           <div className={s.waPreview}>
@@ -94,20 +108,17 @@ export default function BotEditorPage() {
               <span className={s.waAvatar} aria-hidden><Bot size={16} strokeWidth={1.75} color="#fff" /></span>
               {orgName}
             </div>
-            {cfg.greeting && <div className={`${s.waBubble} ${s.waBot}`}>{cfg.greeting}</div>}
-            {cfg.ask_consent && (
-              <>
-                <div className={`${s.waBubble} ${s.waBot}`}>{t('bot.consentLine')}</div>
-                <div className={`${s.waBubble} ${s.waUser}`}>{t('bot.sampleYes')}</div>
-              </>
-            )}
-            {(template?.questions ?? []).slice(0, 3).map((q, i) => (
-              <div key={q.key}>
-                <div className={`${s.waBubble} ${s.waBot}`}>{q.label}</div>
-                {i === 0 && <div className={`${s.waBubble} ${s.waUser}`}>{t('bot.sampleAnswer')}</div>}
-              </div>
-            ))}
+            {/* Bot intro in Spanish */}
+            <div className={`${s.waBubble} ${s.waBot}`}>
+              {cfg.greeting || t('bot.defaultGreeting').replace('{org}', orgName)}
+            </div>
+            {/* The person replies in Haitian Creole */}
+            <div className={`${s.waBubble} ${s.waUser}`}>Wi, nou san kouran depi yè</div>
+            {/* The bot replies in Creole */}
+            <div className={`${s.waBubble} ${s.waBot}`}>Mèsi. Konbyen moun ki lakay la?</div>
+            <div className={`${s.waBubble} ${s.waUser}`}>Nou twa, de nan yo granmoun</div>
           </div>
+          <p className={s.previewCaption}>{t('bot.previewCaption')}</p>
         </div>
       </div>
     </>

@@ -11,6 +11,27 @@
 }
 .filterBar {
   margin-bottom: 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+.areaChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  min-height: 30px;
+  padding: 0.2rem 0.4rem 0.2rem 0.7rem;
+  border-radius: var(--radius-pill);
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+  border: none;
+  font-size: 0.88rem;
+  font-weight: 450;
+  cursor: pointer;
+}
+.areaChip:hover {
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
 }
 
 /* Inset grouped list of reports */

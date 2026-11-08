@@ -7,11 +7,11 @@ import { useMe, usePatchReport, useReport } from '../../api/product/queries';
 import { useT, type ProductKey } from '../i18n';
 import { Tag } from '../../ui/kit';
 import { Segmented } from '../../ui/Segmented';
-import { StatusPill, UrgentPill, useChannelLabel } from '../components/bits';
+import { StatusPill, UrgentPill, useChannelLabel, useLabels } from '../components/bits';
 import type { ReportStatus } from '../../api/product';
 import s from './Reports.module.css';
 
-const STATUSES: ReportStatus[] = ['draft', 'confirmed', 'review', 'superseded', 'withdrawn'];
+const STATUSES: ReportStatus[] = ['draft', 'confirmed', 'superseded', 'withdrawn', 'abandoned'];
 
 export default function ReportDetailPage() {
   const t = useT();
@@ -21,6 +21,7 @@ export default function ReportDetailPage() {
   const patch = usePatchReport();
   const me = useMe();
   const channelLabel = useChannelLabel();
+  const L = useLabels();
 
   const [notes, setNotes] = useState('');
   const [assignee, setAssignee] = useState<string>('');
@@ -40,8 +41,8 @@ export default function ReportDetailPage() {
 
   return (
     <>
-      <Link to="/app/reports" className={s.backLink}>
-        <ChevronLeft size={18} strokeWidth={1.75} /> {t('reports.title')}
+      <Link to="/app/data" className={s.backLink}>
+        <ChevronLeft size={18} strokeWidth={1.75} /> {t('data.title')}
       </Link>
       <div className={s.detailTop}>
         <h1>{r.area ?? '—'}</h1>
@@ -70,7 +71,7 @@ export default function ReportDetailPage() {
             <h2>{t('reports.extracted')}</h2>
             <div className={s.detailTags}>
               {(r.tags ?? []).map((tag) => (
-                <Tag key={tag}>{tag}</Tag>
+                <Tag key={tag}>{L.tag(tag)}</Tag>
               ))}
             </div>
             <dl className={s.fields}>
@@ -93,7 +94,7 @@ export default function ReportDetailPage() {
             </div>
             <div className={s.metaRow}>
               <span>{t('reports.col.service')}</span>
-              <span>{r.service_type ? `${r.service_type} · ${r.service_status}` : '—'}</span>
+              <span>{r.service_type ? `${L.service(r.service_type)}${r.service_status ? ` · ${L.serviceStatus(r.service_status)}` : ''}` : '—'}</span>
             </div>
             <div className={s.metaRow}>
               <span>{t('reports.col.reporter')}</span>
