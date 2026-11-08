@@ -14,7 +14,7 @@ set -euo pipefail
 
 PROJECT_ID="${PROJECT_ID:-csl-metron-webhook}"
 REGION="${REGION:-us-east4}"
-SERVICE="${SERVICE:-dashboard-api}"
+SERVICE="${SERVICE:-metron-api}"           # the live dashboard API service
 REPO="${REPO:-aid}"
 SQL_INSTANCE="${SQL_INSTANCE:-aid-pg}"
 RUN_SA_NAME="${RUN_SA_NAME:-webhook-run}"           # reuse the webhook runtime SA

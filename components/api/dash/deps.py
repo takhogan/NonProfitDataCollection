@@ -15,7 +15,7 @@ from dash.context import RequestContext, resolve_data_protection
 from dash.errors import PermissionDenied
 from dash.read_models import primary_membership, user_by_id
 from dash.security import decode_access_token
-from dash.shared_db import session_scope
+from dash.shared_db import session_scope, set_tenant
 from dash import settings_store
 
 _bearer = HTTPBearer(auto_error=False)
@@ -42,6 +42,9 @@ def get_context(
     if pm is None:
         raise PermissionDenied("User has no active organization membership")
     membership, org = pm
+    # Row-level security: every later query and transaction in this request
+    # runs as this org, role and membership.
+    set_tenant(db, org.id, role=membership.role, actor_id=membership.id)
 
     # Data-protection: dashboard-managed settings are durable (policy_version via
     # settings_store). The intake-side privacy_profile_version governs intake

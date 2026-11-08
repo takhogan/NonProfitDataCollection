@@ -2,7 +2,7 @@
 # Deploy the deployable components to the LIVE GCP project (Cloud Run, Cloud SQL,
 # Firebase Hosting). The webhook serves a real WhatsApp number.
 #
-#   scripts/deploy.sh [all|api|dashboard|web ...] [--dry-run] [--yes]
+#   scripts/deploy.sh [all|api|dashboard|web|site ...] [--dry-run] [--yes]
 #   npm run deploy -- --dry-run           # print the plan and commands, run nothing
 #   npm run deploy:api                    # one target
 #
@@ -12,13 +12,19 @@
 #              `alembic upgrade head` (--wait), then the whatsapp-webhook service,
 #              then the aid-worker service (inbox poller + reply sender,
 #              min-instances=1). See DEPLOY.md section 8.
-#   dashboard  components/api: image built with components/cloudbuild.dashboard.yaml,
-#              then components/api/deploy/gcloud-deploy.sh grant + service + url
-#              with the same IMAGE_TAG. It shares the api's database, so it goes
-#              after the api's migrations. (That script's own `build` step passes
-#              `-f` to `gcloud builds submit`, which has no such flag.)
-#   web        components/web -> firebase deploy --only hosting (static-site/ only;
-#              the React build is not hosted yet, see components/web/HOSTING.md).
+#   dashboard  components/api -> Cloud Run service metron-api: image built with
+#              components/cloudbuild.dashboard.yaml, then
+#              components/api/deploy/gcloud-deploy.sh grant + service + url with the
+#              same IMAGE_TAG, SERVICE=metron-api and WEB_ORIGINS below. It shares
+#              the api's database, so it goes after the api's migrations. (That
+#              script's own `build` step passes `-f` to `gcloud builds submit`,
+#              which has no such flag.)
+#   web        components/web -> Cloud Run service metron-web, `gcloud run deploy
+#              --source` (components/web/Dockerfile: Vite build baked against
+#              metron-api, served by nginx).
+#   site       components/web -> firebase deploy --only hosting: metron-reporter.web.app
+#              serves /privacidad statically and rewrites everything else to
+#              metron-web (components/web/HOSTING.md).
 #
 # Nothing is skipped automatically: every target you name is deployed. The
 # preflight prints the deployed image tag of each Cloud Run service and how many
@@ -33,7 +39,10 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PROJECT_ID="${PROJECT_ID:-csl-metron-webhook}"
 REGION="${REGION:-us-east4}"
 API_SERVICE="${API_SERVICE:-whatsapp-webhook}"
-DASH_SERVICE="${DASH_SERVICE:-dashboard-api}"
+DASH_SERVICE="${DASH_SERVICE:-metron-api}"
+WEB_SERVICE="${WEB_SERVICE:-metron-web}"
+# Browser origins allowed to call metron-api (credentialed CORS).
+WEB_ORIGINS="${WEB_ORIGINS:-https://metron-reporter.web.app,https://metron-web-846191018592.us-east4.run.app,https://metron-web-3cgqtlfqwq-uk.a.run.app,http://localhost:5173}"
 
 DRY_RUN=0
 YES=0
@@ -42,17 +51,17 @@ for a in "$@"; do
   case "$a" in
     --dry-run|-n) DRY_RUN=1 ;;
     --yes|-y) YES=1 ;;
-    all) TARGETS+=(api dashboard web) ;;
-    api|dashboard|web) TARGETS+=("$a") ;;
-    -h|--help) sed -n '2,29p' "$0"; exit 0 ;;
-    *) echo "unknown argument: $a (targets: all api dashboard web; flags: --dry-run --yes)" >&2; exit 2 ;;
+    all) TARGETS+=(api dashboard web site) ;;
+    api|dashboard|web|site) TARGETS+=("$a") ;;
+    -h|--help) sed -n '2,37p' "$0"; exit 0 ;;
+    *) echo "unknown argument: $a (targets: all api dashboard web site; flags: --dry-run --yes)" >&2; exit 2 ;;
   esac
 done
-[[ ${#TARGETS[@]} -gt 0 ]] || { sed -n '2,29p' "$0"; exit 2; }
+[[ ${#TARGETS[@]} -gt 0 ]] || { sed -n '2,37p' "$0"; exit 2; }
 
 has() { local t; for t in "${TARGETS[@]}"; do [[ "$t" == "$1" ]] && return 0; done; return 1; }
 ORDERED=()
-for t in api dashboard web; do has "$t" && ORDERED+=("$t"); done
+for t in api dashboard web site; do has "$t" && ORDERED+=("$t"); done
 
 bold() { printf '\033[1m%s\033[0m\n' "$*"; }
 warn() { printf '\033[33mwarning:\033[0m %s\n' "$*" >&2; }
@@ -82,7 +91,7 @@ if [[ -n "$(git -C "$ROOT" status --porcelain -- components/)" ]]; then
   fail "uncommitted changes under components/; commit them first (images are tagged by commit)"
 fi
 
-if has api || has dashboard; then
+if has api || has dashboard || has web; then
   if ! command -v gcloud >/dev/null; then
     fail "gcloud not on PATH (install the Google Cloud SDK)"
   else
@@ -95,7 +104,7 @@ if has api || has dashboard; then
         fail "cannot read project $PROJECT_ID with $ACCOUNT (wrong account, or token expired: gcloud auth login)"
       fi
       # Informational only: what is live, and what changed since.
-      for pair in "api:$API_SERVICE:components/whatsapp/api" "dashboard:$DASH_SERVICE:components/api components/whatsapp/api"; do
+      for pair in "api:$API_SERVICE:components/whatsapp/api" "dashboard:$DASH_SERVICE:components/api components/whatsapp/api" "web:$WEB_SERVICE:components/web"; do
         IFS=: read -r t svc paths <<<"$pair"
         has "$t" || continue
         img="$(gcloud run services describe "$svc" --project="$PROJECT_ID" --region="$REGION" \
@@ -105,6 +114,10 @@ if has api || has dashboard; then
           continue
         fi
         tag="${img##*:}"
+        if [[ "$img" == *@sha256:* ]]; then
+          echo "$svc: live image $img (source deploy, no commit tag; cannot compare)"
+          continue
+        fi
         # shellcheck disable=SC2086
         if git -C "$ROOT" cat-file -e "$tag^{commit}" 2>/dev/null; then
           n="$(git -C "$ROOT" diff --name-only "$tag" HEAD -- $paths | wc -l | tr -d ' ')"
@@ -117,7 +130,7 @@ if has api || has dashboard; then
   fi
 fi
 
-if has web; then
+if has site; then
   if ! command -v firebase >/dev/null; then
     fail "firebase CLI not on PATH (npm i -g firebase-tools); see components/web/HOSTING.md for the REST fallback"
   else
@@ -146,7 +159,8 @@ for t in "${ORDERED[@]}"; do
   case "$t" in
     api) echo "  api        build aid-api:$GIT_SHA, run migrations (aid-migrate job), deploy $API_SERVICE and aid-worker" ;;
     dashboard) echo "  dashboard  build dashboard-api:$GIT_SHA, deploy $DASH_SERVICE" ;;
-    web) echo "  web        firebase deploy --only hosting (metron-reporter.web.app)" ;;
+    web) echo "  web        build components/web from source, deploy $WEB_SERVICE" ;;
+    site) echo "  site       firebase deploy --only hosting (metron-reporter.web.app -> /privacidad + $WEB_SERVICE)" ;;
   esac
 done
 
@@ -173,10 +187,15 @@ for t in "${ORDERED[@]}"; do
         --config=components/cloudbuild.dashboard.yaml --substitutions=_TAG="$GIT_SHA" components/
       for step in grant service url; do
         run_in "$ROOT/components/api" env PROJECT_ID="$PROJECT_ID" REGION="$REGION" IMAGE_TAG="$GIT_SHA" \
-          ./deploy/gcloud-deploy.sh "$step"
+          SERVICE="$DASH_SERVICE" WEB_ORIGINS="$WEB_ORIGINS" ./deploy/gcloud-deploy.sh "$step"
       done
       ;;
     web)
+      run_in "$ROOT/components/web" gcloud run deploy "$WEB_SERVICE" --project="$PROJECT_ID" --quiet \
+        --region="$REGION" --source=. --allow-unauthenticated --port=8080 \
+        --min-instances=0 --max-instances=3 --memory=512Mi
+      ;;
+    site)
       run_in "$ROOT/components/web" firebase deploy --only hosting --project "$PROJECT_ID"
       ;;
   esac

@@ -6,20 +6,32 @@ hosting **target** `site`. `.firebaserc` maps that target to the site ID
 default site `csl-metron-webhook.web.app` is deliberately not used: its name ties
 CSL to the bot in public.
 
-## Why the config lives in `components/web`
+## What the site serves (since 2026-11-08)
 
-The React app in this folder will be deployed to the same site later, so the
-config sits next to it. Moving the app in is then a change to `public` and a few
-rewrites, not a new site. Until then `public` points at `static-site/`: two plain
-HTML pages (home and `/privacidad`) and one stylesheet, with no scripts.
+The Metron frontend runs on Cloud Run as `metron-web` (this folder's `Dockerfile`:
+Vite build against `metron-api`, served by nginx). Firebase Hosting fronts it:
+
+- `/privacidad` (and `/privacy`, which redirects there) is still the static page in
+  `static-site/`, because it is the Privacy Policy URL registered with Meta. Its
+  stylesheet `/styles.css` is static too. Firebase serves static files before rewrites.
+- Everything else, `/` included, is rewritten to the `metron-web` service
+  (`"rewrites": [{"source": "**", "run": {"serviceId": "metron-web", ...}}]`). The old
+  static home page was removed so `/` reaches the app.
+- The strict CSP and `Cache-Control: no-cache` apply only to the static paths. App
+  responses keep nginx's own headers: its CSP allows `connect-src` to `metron-api`
+  (a site-wide `connect-src 'self'` here would block every API call), and hashed
+  `/assets/` are cached for a year. The other security headers apply everywhere.
+- The app signs in with a JWT bearer token, not a cookie, so the Firebase rule that
+  only forwards `__session` cookies does not affect it (see below).
+- `metron-api` must list `https://metron-reporter.web.app` in `WEB_ORIGINS` (CORS);
+  `npm run deploy:dashboard` sets it.
 
 ```bash
-cd components/web
-firebase deploy --only hosting --project csl-metron-webhook
+npm run deploy:web     # repo root: rebuild and deploy metron-web (gcloud run deploy --source)
+npm run deploy:site    # repo root: firebase deploy --only hosting, after checking static-site/
+# or directly:
+cd components/web && firebase deploy --only hosting --project csl-metron-webhook
 ```
-
-`npm run deploy:web` at the repo root runs the same command after checking that
-`static-site/` holds only `.html`/`.css` files.
 
 Run the deploy from `components/web` only after checking `static-site/` holds just
 the pages: everything in it is published. (`*.log` and dotfiles are ignored, because a
@@ -39,16 +51,17 @@ App domain `metron-reporter.web.app`. Data deletion instructions are at
 
 ## Headers (WEB-063)
 
-Every response gets a strict CSP (`default-src 'self'`, no inline script or
-style, `frame-ancestors 'none'`, `base-uri 'none'`), `Referrer-Policy:
-no-referrer`, `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, HSTS,
-`Cross-Origin-Opener-Policy: same-origin`, and a `Permissions-Policy` that turns
-off camera, microphone, geolocation and payment. Everything is `Cache-Control: no-cache`
-(the site is three small files), so text edits to the privacy page show up at once.
-When the Vite build moves in, give hashed `/assets/**` a long `max-age` and keep HTML `no-cache`;
-note that Hosting header globs match the request path, so with `cleanUrls` an `*.html` glob does not match `/privacidad`.
+Every response gets `Referrer-Policy: no-referrer`, `X-Content-Type-Options: nosniff`,
+`X-Frame-Options: DENY`, HSTS, `Cross-Origin-Opener-Policy: same-origin`, and a
+`Permissions-Policy` that turns off camera, microphone, geolocation and payment.
+The static paths (`/privacidad`, `/privacidad.html`, `/styles.css`) also get a strict CSP
+(`default-src 'self'`, no inline script or style, `frame-ancestors 'none'`, `base-uri
+'none'`) and `Cache-Control: no-cache`, so text edits to the privacy page show up at once.
+Hosting header globs match the request path, so with `cleanUrls` an `*.html` glob does
+not match `/privacidad`; that is why both forms are listed. Responses from `metron-web`
+carry its own CSP and caching from `deploy/nginx.conf.template`.
 
-## Planned: React app and same-site `/v1`
+## Earlier plan: React app from `dist/` and same-site `/v1` (superseded)
 
 The API's session cookie (`__Host-sid`, SameSite=Lax) needs the web app and the
 API on the same site. The plan is to serve both from this Hosting site, with

@@ -19,7 +19,7 @@ Never push to `main` or merge without being asked.
 ```bash
 nvm use                 # Node 24 (.nvmrc); the orchestrator refuses older Node
 npm run start:dev       # db + venvs + migrations + seed, then api :8000, worker, dashboard :8001, web :5173
-npm run start:dev -- --web=http   # web against the backend instead of the mock client
+npm run start:dev -- --web=http   # web against the local dashboard API (:8001) instead of the mock
 npm run setup:dev       # prepare only, then exit
 ```
 
@@ -49,8 +49,9 @@ cd components/web && npm test
 ```bash
 npm run deploy -- --dry-run   # always do this first and show the user the plan
 npm run deploy:api            # backend: build, aid-migrate job (alembic), whatsapp-webhook
-npm run deploy:dashboard      # dashboard-api (after api: it reads the same schema)
-npm run deploy:web            # Firebase Hosting static pages
+npm run deploy:dashboard      # metron-api, the dashboard API (after api: it reads the same schema)
+npm run deploy:web            # metron-web, the frontend (Cloud Run, source deploy)
+npm run deploy:site           # Firebase Hosting: metron-reporter.web.app -> /privacidad + metron-web
 ```
 
 ## Ownership and data
