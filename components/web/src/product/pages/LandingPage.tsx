@@ -163,7 +163,7 @@ export default function LandingPage() {
       <div className={s.ctaFinal}>
         <h2>{lang === 'es' ? 'Empiece hoy' : 'Start today'}</h2>
         <p className={s.ctaSub}>
-          {lang === 'es' ? 'Cree su organización en unos minutos.' : 'Create your organization in a few minutes.'}
+          {lang === 'es' ? 'Registre su organización en unos minutos.' : 'Register your organization in a few minutes.'}
         </p>
         <Link to="/signup" className={`${s.btnLg} ${s.btnPrimary}`}>
           {t('landing.cta')}

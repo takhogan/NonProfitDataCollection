@@ -39,7 +39,7 @@ const STR = {
   'error.permission_denied': { es: 'Correo o contraseña inválidos.', en: 'Invalid email or password.' },
 
   // Landing
-  'landing.cta': { es: 'Crear su organización', en: 'Create your organization' },
+  'landing.cta': { es: 'Registrar organización', en: 'Register organization' },
   'landing.login': { es: 'Iniciar sesión', en: 'Log in' },
   'landing.how': { es: 'Cómo funciona', en: 'How it works' },
   'landing.step.configure': { es: 'Configure', en: 'Configure' },
@@ -125,7 +125,7 @@ const STR = {
 
   // Auth
   'auth.loginTitle': { es: 'Iniciar sesión', en: 'Log in' },
-  'auth.signupTitle': { es: 'Cree su organización', en: 'Create your organization' },
+  'auth.signupTitle': { es: 'Registre su organización', en: 'Register your organization' },
   'auth.email': { es: 'Correo electrónico', en: 'Email' },
   'auth.password': { es: 'Contraseña', en: 'Password' },
   'auth.displayName': { es: 'Su nombre', en: 'Your name' },
@@ -133,7 +133,7 @@ const STR = {
   'auth.orgType': { es: 'Tipo', en: 'Type' },
   'auth.loginBtn': { es: 'Entrar', en: 'Log in' },
   'auth.signupBtn': { es: 'Crear organización', en: 'Create organization' },
-  'auth.toSignup': { es: '¿No tiene cuenta? Cree su organización', en: "Don't have an account? Create your organization" },
+  'auth.toSignup': { es: '¿No tiene cuenta? Registre su organización', en: "Don't have an account? Register your organization" },
   'auth.toLogin': { es: '¿Ya tiene cuenta? Inicie sesión', en: 'Already have an account? Log in' },
   'auth.demoHint': { es: 'Demo: demo@metron.org / demo-pass', en: 'Demo: demo@metron.org / demo-pass' },
 
