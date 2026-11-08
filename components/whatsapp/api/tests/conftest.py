@@ -6,6 +6,8 @@ from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
+from app.auth.ratelimit import limiter
+from app.auth.store import InMemoryAuthStore, get_auth_store
 from app.db import get_db
 from app.main import app
 from app.models import Base
@@ -76,8 +78,17 @@ def seeded(db_session):
 
 
 @pytest.fixture()
-def client(db_session):
-    """TestClient wired to the test session via get_db override."""
+def auth_store():
+    """A fresh in-memory auth store (sessions, credentials, TOTP) per test."""
+    return InMemoryAuthStore()
+
+
+@pytest.fixture()
+def client(db_session, auth_store):
+    """TestClient wired to the test DB session and auth store.
+
+    The base URL is https so Secure session cookies are sent back.
+    """
     def _override_get_db():
         try:
             yield db_session
@@ -85,9 +96,12 @@ def client(db_session):
             pass
 
     app.dependency_overrides[get_db] = _override_get_db
-    with TestClient(app) as c:
+    app.dependency_overrides[get_auth_store] = lambda: auth_store
+    limiter.reset()
+    with TestClient(app, base_url="https://testserver") as c:
         yield c
     app.dependency_overrides.clear()
+    limiter.reset()
 
 
 def auth_headers(client: TestClient, login: dict) -> dict:
