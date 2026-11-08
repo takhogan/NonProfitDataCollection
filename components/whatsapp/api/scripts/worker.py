@@ -2,7 +2,10 @@
 
 Deployed as a second Cloud Run service from the SAME image as the API, with a
 different command (python -m scripts.worker). It shares the same database and
-domain code; it does not open an HTTP port.
+domain code. Cloud Run services must accept connections on $PORT or the
+startup probe kills the instance, so when PORT is set (only on Cloud Run) the
+worker also answers GET /health on that port from a background thread. It
+serves nothing else. Locally PORT is unset and no port is opened.
 
 Each cycle does two things:
   1. process inbound_event rows: for a text message, queue a canned Spanish
@@ -18,8 +21,11 @@ a worker restart does not double-handle anything or double-send.
 from __future__ import annotations
 
 import logging
+import os
 import signal
+import threading
 import time
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -40,6 +46,28 @@ def _stop(signum, _frame):
     global _running
     log.info("received signal %s, shutting down after current batch", signum)
     _running = False
+
+
+class _HealthHandler(BaseHTTPRequestHandler):
+    def do_GET(self):  # noqa: N802 (http.server naming)
+        ok = self.path in ("/", "/health")
+        body = b'{"status":"ok"}' if ok else b'{"status":"not_found"}'
+        self.send_response(200 if ok else 404)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+    def log_message(self, *_args):  # keep probe hits out of the logs
+        pass
+
+
+def start_health_server(port: int) -> ThreadingHTTPServer:
+    """Serve GET /health on `port` in a daemon thread (for the Cloud Run probe)."""
+    server = ThreadingHTTPServer(("0.0.0.0", port), _HealthHandler)
+    threading.Thread(target=server.serve_forever, name="health", daemon=True).start()
+    log.info("health endpoint listening on :%s", port)
+    return server
 
 
 def process_batch(db: Session, batch_size: int) -> int:
@@ -79,6 +107,9 @@ def run() -> None:
         settings.app_env, interval, batch_size,
     )
 
+    port = os.environ.get("PORT")
+    health = start_health_server(int(port)) if port else None
+
     adapter = get_adapter()
 
     while _running:
@@ -100,6 +131,8 @@ def run() -> None:
                 time.sleep(min(0.5, interval - slept))
                 slept += 0.5
 
+    if health is not None:
+        health.shutdown()
     log.info("worker stopped")
 
 
