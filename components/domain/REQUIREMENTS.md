@@ -1,259 +1,282 @@
 # Domain requirements
 
-Business rules shared by the API and operational worker. Shared context, roles,
-decisions, and threat model: [../REQUIREMENTS.md](../REQUIREMENTS.md).
+Business rules shared by the API and operational worker in the Python backend
+(`app.domain`). Shared context, roles, privacy profiles, and decisions:
+[../REQUIREMENTS.md](../REQUIREMENTS.md).
 
-In the pilot, CSL **records, triages, communicates, and shares**. Partners fulfill.
-The domain therefore models needs and sharing in depth. Fulfillment appears only
-as optional reported outcomes. In-app fulfillment (stock, runs, charging slots) is
-deferred (`DOM-090`).
+The core flow is **reports → area indicators → providers act**. The operating NGO
+does not manage individual cases in the pilot (`DOM-090`).
 
 ## Command conventions
 
 - **DOM-001 (P0) Explicit context.**
-  - Every command receives organization, actor membership, roles, an operation key,
-    a clock, and a transaction.
-  - A command never takes tenant or actor from its payload.
-  - *Accept:* a cross-organization ID returns `not_found`.
-- **DOM-002 (P0) Idempotent commands.**
-  - Retryable commands (intake, need update, share/export, outcome report, review
-    disposition) store their operation key and result.
-  - The same key with different input returns `idempotency_conflict`.
-- **DOM-003 (P0) Atomic side effects.** The state change, audit event, and outbound
-  message intent commit in one transaction. There are no network calls inside commands.
-- **DOM-004 (P0) Explicit state machines.**
-  - Case, need, conversation, review task, and partner vetting each have a declared
-    transition table.
-  - An illegal transition returns `invalid_transition`.
-  - A manual override requires a reason.
-- **DOM-005 (P0) Unknown is not false.** Unknown, absent, and zero stay distinct
-  everywhere.
+  - Every command takes a context (org, actor, roles, privacy profile version), an
+    operation key, a session, and a clock.
+  - Tenant and actor never come from the payload.
+  - Other-org IDs return `not_found`.
+- **DOM-002 (P0) Idempotency.** Retryable commands store their operation key, a digest
+  of the request, and the result. The same key with different input returns
+  `idempotency_conflict`.
+- **DOM-003 (P0) Atomic side effects.** State change, audit event, and outbound intent
+  commit in one transaction. There are no network calls inside commands.
+- **DOM-004 (P0) Explicit state machines.** Report, need, review task, provider vetting,
+  activity, and conversation each have a declared transition table.
+- **DOM-005 (P0) Unknown is not false.** Unknown, absent, and zero stay distinct in
+  reports and aggregates.
 
-## Intake and observations
+## Reports and observations
 
-- **DOM-010 (P0) Submit assessment.** `submitAssessment` accepts:
-  - channel (WhatsApp, phone, assisted)
-  - reporting relationship (self, household, other person, area)
-  - location
-  - power and water observations, each with an observation time and precision
+- **DOM-010 (P0) Submit report.** `submitReport` accepts:
+  - channel and reporting relationship (self, household, other person, area)
+  - area, plus profile-dependent location detail (`DOM-031`)
+  - `electricity` and `piped_water` observations, each with observation time and
+    precision
   - zero or more needs
-  - permission records
-  - questionnaire version
+  - permissions
+  - the questionnaire version
 
-  It creates the assessment and observations. When needs exist, it also links or
-  creates the household and case.
-  - *Accept:* an area-only report creates no household, person, or case.
-- **DOM-011 (P0) Draft vs confirmed.** Bot answers stay a draft until the resident
-  confirms the summary. Only confirmed assessments create needs. Abandoned drafts
-  (48 hours) keep their partial observations, flagged unconfirmed.
-- **DOM-012 (P0) Corrections keep history.** A correction supersedes the earlier record,
-  and the prior version stays readable. Correcting a need updates that need under a
-  new version, not a second active need.
+  *Accept:* an area-only report stores no personal data.
+- **DOM-011 (P0) Draft vs confirmed.** Bot answers stay a draft until the reporter
+  confirms. Only confirmed reports feed aggregates. Abandoned drafts contribute nothing.
+- **DOM-012 (P0) Corrections keep history.**
+  - A correction supersedes the earlier report.
+  - Aggregates use the latest version.
+  - The prior version is kept per retention rules.
 - **DOM-013 (P0) Observation semantics.**
-  - Service types are `electricity` and `piped_water`. Statuses are `available`,
-    `unavailable`, `intermittent`, `unknown`.
+  - Statuses are `available`, `unavailable`, `intermittent`, `unknown`.
   - Observation time and outage onset are recorded separately.
   - Drinking-water reserves are a need attribute, not a piped-water status.
-- **DOM-014 (P0) Repeat reports.** A repeat report adds to the timeline. A change over
-  time is a transition, not a conflict.
-- **DOM-015 (P0) Outage episodes.** Optional, correctable grouping by area and time.
-  It is never a prerequisite for a need.
-- **DOM-016 (P1) Source groups.** Forwarded copies, or the same informant on two
+- **DOM-014 (P0) Repeat reports.**
+  - Repeat reports from the same reporter are linked through a **pseudonymous reporter
+    key**: an org-scoped HMAC of the contact endpoint, rotated per the profile.
+  - They update that reporter's current state instead of counting twice.
+  - A change over time is a transition, not a conflict.
+  - *Accept:* the same phone reporting "no water" three times in a day counts as one
+    reporter in that day's aggregate.
+- **DOM-015 (P0) Shared phones.** In the `standard` profile with household records, a
+  shared phone may represent several households, and the reporter chooses which one.
+  In the `protective` profile, the reporter key counts reporters, not households, and
+  indicators label the unit honestly ("reportantes").
+- **DOM-016 (P0) Outage episodes.** Optional, correctable grouping by area and time.
+- **DOM-017 (P1) Source groups.** Forwarded copies, or the same informant on two
   channels, count as one source.
 
-## Households, people, and contacts
+## Needs
 
-- **DOM-020 (P0) Phone ≠ person.** One endpoint may link to several households.
-  Endpoint matches create duplicate candidates and never auto-merge.
-  - *Accept:* two households on one shared phone stay distinct.
-- **DOM-021 (P0) Minimal household.** A household needs only a random reference code
-  (e.g. `MR-7K3-QF`), an area, and an optional estimated member count. Names and
-  precise location are optional.
-- **DOM-022 (P0) Safe-to-contact.** Contacts record `is_safe_to_contact` and an optional
-  preferred contact window. Outbound intents check it. A contact that is not safe to
-  contact is excluded from partner lists (`DOM-075`).
-- **DOM-023 (P0) Merges.** Merges need a reviewer proposal and coordinator approval.
-  They are reversible and keep provenance.
-- **DOM-024 (P1) Location history.** A move creates a new location validity interval.
-
-## Cases and needs
-
-- **DOM-030 (P0) Need categories.** Each need belongs to one category:
-  - `water_drinking`
-  - `water_other`
-  - `charging`
-
-  Drinking and other-use water are separate needs, never merged. Each need has a
-  period, urgency with reasons, a status, and optional quantity:
-  - water: liters requested, or people to serve
-  - charging: device count
-
-  Units are never mixed.
-- **DOM-031 (P0) Need status:**
+- **DOM-020 (P0) Need record.** A need belongs to a report:
+  - category (`water_drinking`, `water_other`, `charging`)
+  - people affected (optional)
+  - quantity (optional): liters for water, device count for charging
+  - remaining supply (`none`/`little`/`some`/`unknown`)
+  - stated urgency
+  - access notes (cannot leave home, no containers)
+  - preferred times
+- **DOM-021 (P0) Need lifecycle.**
 
   ```text
-  open → triaged → resolved
+  active → stale → resolved_by_reporter | withdrawn | expired
   ```
 
-  Branches: `on_hold`, `withdrawn` (by the resident), and `expired` (no confirmation
-  of need after the policy period).
-  - Sharing state is a separate attribute (`DOM-075`).
-  - Partner-reported and resident-reported outcomes are facts attached to the need.
-    They inform a CSL disposition but do not change status by themselves.
-  - `resolved` requires a disposition reason: `resident_confirmed_helped`,
-    `resident_no_longer_needs`, `partner_reported_and_no_reply`, `duplicate`, or
-    `other` with a note.
-- **DOM-032 (P0) Case closure.** A case closes only when every need is resolved,
-  withdrawn, or expired. Service restoration never closes a need.
-  - *Accept:* piped water restored → the `water_drinking` need stays open. One need
-    resolved → the others stay open.
-- **DOM-033 (P0) Urgency.**
-  - Urgency is `urgent`, `high`, or `routine`, set or confirmed by staff from
-    declared inputs:
-    - remaining drinking water
-    - waiting time
-    - stated urgency
-    - access barriers (cannot leave home, no containers)
-    - presence of vulnerable members (yes/no only)
-  - The bot's suggestion is stored separately from the human decision.
-  - Outage duration or neighborhood consensus alone never sets priority.
-- **DOM-034 (P0) Versioned policy.** Triage, urgency suggestion, escalation thresholds,
-  stale-need period, and expiry period are versioned org data. Each decision records
-  the version in force.
-- **DOM-035 (P0) Repeat demand.**
-  - A request in a new period is new demand.
-  - A request that overlaps an open need of the same category updates that need
-    (refreshing `last_confirmed_at`) instead of duplicating it.
-- **DOM-036 (P0) Assignment and escalation.** A case has at most one owner, and
-  reassignment records the reason. Urgent cases unassigned past the threshold (default
-  2 hours in staffed hours) escalate.
-- **DOM-037 (P0) Follow-up.**
-  - A follow-up asks the resident whether the need remains and whether anyone helped.
-    It runs after a need is shared, and periodically while the need is open (default
-    every 72 hours, max 3 attempts).
-  - Replies refresh, resolve, or reopen the need.
-  - No reply leads to `expired` only after the policy period, never sooner.
+  - A need goes `stale` with no confirmation after the refresh period (default 72
+    hours), and `expired` after the expiry period (default 14 days).
+  - Refresh replies ("¿Todavía lo necesitas?") reactivate the need or resolve it.
+  - Service restoration never resolves a need.
+- **DOM-022 (P0) No dispatch semantics.** Needs have no assignment, allocation, or
+  closure workflow. Provider activity in an area never changes a need's state. Only the
+  reporter, or expiry, does.
+- **DOM-023 (P0) Urgency is reported, not judged.** Stated urgency and its inputs are
+  stored as reported. Coordinators may flag an urgent report for review (D8), but
+  aggregates never re-weight individuals by staff judgment.
 
-## Need details
+## Privacy profile enforcement
 
-- **DOM-040 (P0) Water detail.**
-  - Intended use is implied by the category.
-  - People to serve, remaining supply (`none`/`little`/`some`/`unknown`, plus
-    optional days left).
-  - Whether they have containers, and whether they need help receiving.
-  - Delivery landmark and preferred window.
-  - All fields are optional except the category.
-- **DOM-041 (P0) No safety inference.** The platform never records or implies that any
-  water is safe to drink. It records only what the resident needs.
-- **DOM-042 (P0) Charging detail.**
-  - Device types (phone, power bank, other with text) and counts.
-  - Whether they have a charger or cable.
-  - Whether they can reach a site, and access assistance needed.
-  - Preferred times.
-- **DOM-043 (P1) Service directory.**
-  - Coordinators maintain a list of partner-provided service points: water
-    distribution points and charging places, with area, hours, status, and
-    last-checked time.
-  - The bot can share the points relevant to a resident's area and need.
-  - The directory only gives information; it does not reserve anything.
+- **DOM-030 (P0) Profile as policy.** The privacy profile is a versioned org policy with
+  these settings:
+  - names allowed
+  - location mode (`meeting_point` / `address`)
+  - GPS allowed
+  - reporter phone retention
+  - household records allowed
+  - contact-list fields
+  - public dashboard level, *k*, and delay
+  - aggregate *k*
 
-## Sharing with partners
+  Every command reads the active version. Each report records the version it was
+  collected under.
+- **DOM-031 (P0) Location capture by profile.**
+  - `meeting_point` mode: the reporter picks a meeting point in their sector from a
+    short list, or "none nearby".
+  - `address` mode: an encrypted address or landmark is captured, plus an optional GPS
+    point.
+  - *Accept:* in protective mode, the schema rejects name, address, or GPS fields.
+- **DOM-032 (P0) Tightening.** Activating a stricter profile queues a purge of fields the
+  new profile disallows. It runs within 24 hours and is audited with counts.
+- **DOM-033 (P0) Loosening.** A looser profile applies only to reports collected under
+  the new notice version. Existing data is never enriched.
+- **DOM-034 (P0) Meeting points.**
+  - Coordinators manage meeting points per sector: name, type, and a description of a
+    public place.
+  - A meeting point holds no personal data.
+  - Deactivating one keeps references, labelled inactive.
 
-- **DOM-070 (P0) Permission records.** Messaging permission, data-processing notice
-  acknowledgement, and **sharing consent** are separate records, each with a purpose,
-  notice version, and capture time. Sharing consent is optional and its wording is
-  specific (SEC-16).
-- **DOM-071 (P0) Outbound gate.** Every outbound intent declares its purpose and checks:
-  - permission
-  - opt-out
-  - safe-to-contact
-  - the messaging window or template requirement
+## Area indicators
 
-  Blocked intents become staff tasks.
-- **DOM-072 (P0) Opt-out and withdrawal.**
-  - Opt-out stops optional outreach.
-  - Withdrawing sharing consent removes the household from all partner lists and
-    queues a resident notice (SEC-16).
-  - Both trigger retention handling.
-- **DOM-073 (P1) Deletion request.** Creates a task, runs anonymization, and keeps
-  aggregates and required audit records.
-- **DOM-075 (P0) Contactable list.** A need appears on a partner's list only when all of
-  these hold:
-  - the household has active sharing consent and is safe to contact
-  - the need is `triaged`, not resolved, withdrawn, or expired, and marked
-    `shareable` by staff
-  - the need's category and area are in the partner's scope
-  - the partner organization is `vetted`
+- **DOM-040 (P0) Indicator cells.** For each area (sector and parish) × category or
+  service × time bucket (6 hours, 24 hours, 7 days), compute:
+  - active needs
+  - distinct reporters (and households in the `standard` profile)
+  - people affected (sum of known values, plus the count of needs where it is unknown)
+  - urgency mix and remaining-supply mix
+  - service status mix
+  - freshness (newest confirmed observation)
+  - the share of reports pending review
+- **DOM-041 (P0) Unknown coverage.** An area with no reports in the bucket is `unknown`,
+  never zero need or "service OK". Indicators carry a coverage label: `none`, `thin`
+  (< k), or `reported`.
+- **DOM-042 (P0) Confidence label.** Every cell has a transparent confidence label, not a
+  numeric truth score, derived from:
+  - the number of independent sources
+  - review status
+  - freshness
+  - agreement with external context (Monitor Ciudad, satellites)
 
-  Fields are the minimum per D17 (proposed below). The list never includes observation
-  history, notes, review flags, other needs out of scope, or names unless the resident
-  chose to give one.
-  - Proposed minimum fields: reference code, sector, landmark, category, quantity or
-    people, urgency, preferred window, container/access notes, and phone.
-- **DOM-076 (P0) Partner vetting.**
-  - Partner organizations move `unvetted → vetted → suspended`, and only an org admin
-    may change this, with a reason.
-  - Vetting records the responsible contact, the data-handling statement version, and
-    the scope.
-  - Suspension immediately removes list access and expires the partner's export links.
-- **DOM-077 (P0) Share events.** Every list view and export records a share event: the
-  partner, the user, which needs (IDs), the fields, and the time. A need's sharing
-  attribute shows which partners received it and when.
-  - *Accept:* a coordinator can answer "which partners received household MR-7K3-QF's
-    data?"
-- **DOM-078 (P0) Resident informed.** The first time a need is shared, the resident is
-  told that their request is now visible to organizations that may help in their area,
-  and that CSL does not control whether or when those organizations respond. Partner
-  names are not sent unless the partner agrees (configurable per partner).
-- **DOM-079 (P1) Partner outcomes.**
-  - A partner user may record an outcome on a listed need: `contacted`, `helped`
-    (with an optional quantity), `could_not_reach`, `not_able_to_help`.
-  - Each outcome is a fact with its source and time, never a status change.
-  - Outcomes `helped` and `could_not_reach` trigger a resident follow-up (DOM-037).
+  Labels: `low`, `medium`, `high`, each with stated reasons.
+- **DOM-043 (P0) Need ranking.**
+  - "Areas of greatest need" is ordered by declared criteria shown to the user. The
+    default order is urgent active needs, then active needs per reporter, then age of
+    the oldest unmet need, then freshness.
+  - The method is versioned, and the version is shown.
+  - No hidden weights.
+- **DOM-044 (P0) Suppression.** Cells under *k* distinct reporters or households are
+  suppressed or merged up to the parent area, per SEC-10. Suppression runs before any
+  view, export, or API response.
+- **DOM-045 (P0) Separate layers.** External indicators are a separate layer from
+  resident reports, with their own source labels. They never add to or subtract from
+  report counts.
+- **DOM-046 (P0) Reproducibility.** Each indicator snapshot records its method version,
+  input watermark (the latest included report), and profile version, so a published
+  number can be explained later.
+- **DOM-047 (P1) Trends.** Week-over-week change per area and category, with alerts on
+  significant rises (`DOM-055`).
 
-## Evidence and review
+## Providers
 
-- **DOM-060 (P0) Separation.** Evidence status (`unreviewed`, `corroborated`,
-  `disputed`, `unresolved`), need urgency, and the shareable/resolution decisions are
-  separate fields. No rule writes from evidence status to them.
-- **DOM-061 (P0) Comparison candidates.**
-  - Versioned rules propose links between observations: `supports`,
-    `potentially_conflicts`, `possible_duplicate`, `supersedes`.
-  - Rules apply only to observations with compatible service, subject scope, area,
-    and overlapping time.
-  - Each link stores the rule version and reasons.
-  - *Accept:* the same household, unavailable at 10:00 and available at 15:00, is a
-    transition. Two households in the same sector with different statuses at the same
-    time get a link and a review task, and no need changes.
-- **DOM-062 (P0) Review tasks.** Created for:
-  - potential conflicts and duplicate candidates
-  - uncertain locations
-  - stale observations on open needs
+- **DOM-050 (P0) Provider organizations.**
+  - Vetting moves `unvetted → vetted → suspended`, and only an org admin can change it,
+    with a reason.
+  - Each has a scope (areas × categories), a responsible contact, and a statement
+    version.
+  - Suspension immediately revokes contact-list access and API keys.
+- **DOM-051 (P0) Activity log.** Providers record what they are doing where:
+  - type: `water_distribution_point`, `water_delivery`, `charging_point`, `other`
+  - category served, and areas served
+  - schedule (one-off or recurring, with hours)
+  - optional capacity (liters per day, devices per day)
+  - optional public location: a meeting point or public site, never a household
+  - status (`planned`, `active`, `paused`, `ended`)
+  - last-confirmed time
+
+  Activities not confirmed for 7 days are shown as `unconfirmed`.
+- **DOM-052 (P0) Coverage gaps.**
+  - An area × category is `uncovered` when it has active need above a threshold and no
+    `active` provider activity serving it.
+  - It is `covered` when it does, and `unknown` when there is no data.
+  - Coverage says nothing about whether needs were met.
+- **DOM-053 (P0) Activity visibility.** All providers in the tenant see activity entries:
+  organization name, type, areas, schedule, status. Providers can mark an entry
+  internal-only, in which case it counts toward coverage but its details are hidden
+  from other providers. Public visibility follows `DOM-081`.
+- **DOM-054 (P0) Contact list.** A vetted provider sees a reporter on its opt-in contact
+  list only when all of these hold:
+  - the reporter granted list consent (SEC-16)
+  - the reporter has an `active` need in the provider's scope
+  - the profile allows contact lists
+
+  Fields follow the profile: protective shows alias, sector, meeting point, and phone;
+  standard shows name, address, and phone. Every view or export writes share events.
+- **DOM-055 (P0) Alert subscriptions.** A provider user subscribes to an area set ×
+  category with a trigger:
+  - new urgent needs
+  - active needs rising above N
+  - an area becoming uncovered
+  - a large external outage signal
+
+  Alerts are aggregate-only, suppressed, and deduplicated per subscription per window
+  (default 6 hours). Delivery channel per D26.
+
+## Reporter communication
+
+- **DOM-060 (P0) Permissions.**
+  - Separate records for: notice acknowledgement, refresh prompts, area broadcasts, and
+    contact-list inclusion.
+  - Each records its purpose, notice version, and time, and can be withdrawn.
+- **DOM-061 (P0) Outbound gate.** Every outbound intent declares a purpose. The gate
+  checks permission, opt-out, the messaging window or template, and rate limits.
+  Blocked intents are dropped and counted, and do not create staff tasks.
+- **DOM-062 (P0) Refresh prompts.**
+  - A permitted reporter with an `active` or `stale` need is asked, at most every 72
+    hours and at most 3 times per need, whether the service is still out and whether
+    they still need help.
+  - Replies update observations and needs.
+- **DOM-063 (P0) Area information broadcasts.**
+  - A coordinator can send provider activity information to permitted reporters with
+    matching active needs in the activity's areas. Example: "Punto de agua en Plaza X,
+    sáb 8–12, organizado por Y".
+  - The coordinator approves the text, which comes from a template.
+  - Provider names are included only if the provider allows it.
+  - Each reporter receives at most 2 broadcasts per week.
+- **DOM-064 (P0) Opt-out.** `BAJA` stops all outbound messages except the confirmation.
+  Withdrawing a single permission stops only that purpose.
+
+## Data quality review
+
+- **DOM-070 (P0) Review tasks.** Created for:
+  - duplicate candidates
+  - same-area conflicting observations at overlapping times
+  - unresolved locations
+  - floods and coordinated bursts
+  - outlier cells (a sudden spike from few reporters)
+  - urgent-flagged reports (D8)
   - unparsed free text
-  - floods (SEC-11)
-  - resident disputes of a partner-reported outcome
-  - external evidence of interest
+- **DOM-071 (P0) Comparison rules.** Versioned rules compare only compatible service,
+  scope, area, and overlapping time. They store the rule version and reasons. The same
+  reporter changing status over time is a transition.
+- **DOM-072 (P0) Dispositions.** Each records rationale, reviewer, and an optional
+  review-after date. Possible outcomes:
+  - `valid`
+  - `duplicate` (merged, counted once)
+  - `spam` (excluded from aggregates, with a reason)
+  - `location_corrected`
+  - `unresolved`
+- **DOM-073 (P0) No exclusion by disagreement.**
+  - Reports are never excluded from aggregates automatically because of disagreement
+    with neighbors, external data, report frequency, or a shared phone.
+  - Unreviewed and disputed reports still count; they lower the cell's confidence label.
+  - Only a human `duplicate` or `spam` disposition removes a report.
+  - A property test asserts this across commands.
+- **DOM-074 (P0) External evidence is context.** Monitor Ciudad and satellite indicators
+  link at area scope. They affect confidence labels and may open review tasks, but
+  never change report or need state.
 
-  Each task carries its reasons and evidence.
-- **DOM-063 (P0) Dispositions.** Each disposition records the rationale, evidence,
-  reviewer, and an optional review-after date. New evidence reopens it.
-- **DOM-064 (P0) External evidence is context.** Monitor Ciudad and satellite indicators
-  link at area scope. They never change a need, a shareable flag, or evidence status
-  directly.
-- **DOM-065 (P0) No automatic denial or exclusion.** No rule may resolve, expire early,
-  downgrade, or mark a need unshareable because of disagreement, report frequency, a
-  shared phone, missing evidence, or external indicators. A property-based test asserts
-  this across commands.
+## Public dashboard
 
-## Deferred: in-app fulfillment (P2)
+- **DOM-080 (P0) Public cells.** Derived from indicator cells using the profile's public
+  level, *k*, and delay. Only these fields are included:
+  - status mix
+  - need counts by category (banded, e.g. "10–24")
+  - coverage label
+  - freshness
+- **DOM-081 (P0) Public provider activity.** Only activities a provider marked public
+  are shown, with organization name, type, area, schedule, and public location.
 
-- **DOM-090 (P2) Fulfillment management.** If CSL or a partner later runs fulfillment in
-  this platform, reinstate the following from PLATFORM_PLAN.md:
-  - water supply release and use compatibility
-  - locked allocations
-  - delivery runs, stops, partial deliveries, and reconciliation
-  - charging sites, non-overlapping slots, bookings, walk-ins, sessions, and site
-    closure
+## Deferred
 
-  These carry the original invariants: no over-allocation, idempotent fulfillment,
-  and booking ≠ completion. IDs `DOM-044`–`DOM-059` are reserved for this work.
+- **DOM-090 (P2) Case management module.** An optional per-org module for NGOs that want
+  to follow individual households:
+  - household records, cases, assignment, queues, closure, and handoff
+  - optionally, in-app fulfillment (allocations, delivery runs, charging slots, as
+    designed in PLATFORM_PLAN.md)
+
+  It must respect the privacy profile.
+- **DOM-095 (P2) Cross-tenant aggregates.** Combined indicators across operating NGOs
+  under sharing agreements. Each tenant's suppression applies before combination.

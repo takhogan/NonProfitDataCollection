@@ -1,6 +1,7 @@
 # Shared contracts
 
-Versioned boundary formats with runtime validation and derived TypeScript types.
+Versioned boundary formats: Pydantic models in the Python backend, exported as OpenAPI
+and JSON Schema for the web app and the data worker.
 
 Own API inputs/responses, domain command inputs, internal events, normalized
 messages, questionnaire versions, and stable status/category definitions.
@@ -9,53 +10,68 @@ Do not expose database rows wholesale as API responses.
 Conventions:
 
 - UUID identifiers, UTC timestamp serialization, explicit local timezone metadata.
-- Explicit units and requested periods; liters and device sessions are incompatible.
+- Explicit units and requested periods; liters, people, and devices are never mixed.
 - Unknown values remain unknown, rather than silently becoming zero or false.
 - Distinguish service status, evidence review status, need status, sharing state, and outcome facts.
 - Include schema/event versions and idempotency identifiers where applicable.
-- Provide structured error codes for validation, capacity, conflict, and authorization.
+- Provide structured error codes for validation, conflict, authorization, and profile violations.
 - Public/read-model DTOs exclude sensitive fields unless the use case authorizes them.
 
-First deliverable: household assisted-intake payload, assessment confirmation,
-case detail response, need definitions, and the partner list row.
+First deliverable: the report submission (with profile-dependent location), need
+definitions, the indicator cell, the coverage cell, and the activity model.
 
-## Python boundary
+## Data worker boundary
 
-Add versioned JSON Schemas and shared fixtures for external data jobs and results.
-Derive and validate TypeScript and Python models against that format. See the
-[data-job protocol](data-jobs.md); the queue implementation is not the contract.
+The data worker is a separate Python project with its own lockfile. It does not import
+the backend package. Data-job request and result models are defined in Pydantic in the
+backend, exported as versioned JSON Schemas, checked in, and validated in the data
+worker with `jsonschema`. See the [data-job protocol](data-jobs.md). The job-table
+implementation is not the contract.
 
-## Proposed tech stack and source of truth
+## Tech stack and source of truth
 
-Use checked-in JSON Schema Draft 7 as the source of truth for wire formats. Validate
-in TypeScript with Ajv and in Python with `jsonschema.Draft7Validator`; explicitly
-configure format checking in both runtimes. Generate TypeScript types with
-`json-schema-to-typescript` during the build. Python may use typed wrappers internally,
-but the checked-in schema remains authoritative at the boundary.
+The stack was decided on 7 November 2026 (Python backend).
 
-Choose a deliberately portable schema subset: explicit objects, enums, required
-fields, numeric bounds, and versioned references. Do not depend on coercion, injected
-defaults, or runtime-specific regular expressions. Bundle references locally; schema
-validation must not fetch arbitrary remote documents. Use OpenAPI 3.0 descriptions
-for staff endpoints, with an explicit conversion/compatibility check for any schema
-features outside its supported subset.
+- **Source of truth:** Pydantic v2 models in the backend (currently
+  `whatsapp/api/app/contracts`). Use strict models with `extra="forbid"` at external
+  boundaries, explicit enums, and explicit `"unknown"` values. Do not rely on silent
+  coercion.
+- **OpenAPI:** FastAPI generates the OpenAPI document. CI exports it to
+  `contracts/openapi.json` and fails if it differs from the checked-in copy.
+- **Web types:** the web app generates TypeScript types from that file with
+  `openapi-typescript`. Generated types are never hand-edited.
+- **JSON Schema:** event and data-job models are exported with
+  `model_json_schema()` into `contracts/schemas/`, versioned, and checked in.
+- **Shared fixtures:** valid and invalid JSON fixtures are validated by the Pydantic
+  models in the backend, and by `jsonschema` against the exported schema in the data
+  worker. Both must agree.
+
+Keep exported schemas to a portable subset: explicit objects, enums, required fields,
+numeric bounds, and local references only. Schema validation must not fetch remote
+documents.
 
 ## Planned layout
 
-`schemas/common`, `schemas/api/v1`, `schemas/events/v1`, `schemas/data-jobs/v1`,
-`fixtures/valid`, `fixtures/invalid`, and `generated/typescript`. Distribute the same
-schema files with the Python image; no dynamic network schema downloads are needed.
-Questionnaire versions are data linked to stable answer schemas, not executable code.
+The models and exporter live in the backend package. Checked-in artifacts go under
+`components/contracts/`:
+
+- `openapi.json`
+- `schemas/events/v1/`, `schemas/data-jobs/v1/`
+- `fixtures/valid/`, `fixtures/invalid/`
+
+The data worker image packages `schemas/` from the same repository revision. Questionnaire
+versions are data linked to stable answer schemas, not executable code.
 
 ## Evolution and verification
 
 Version persisted events as well as endpoints. Keep consumers compatible with queued
 older versions during rollout; reject unsupported versions explicitly and route
 failed events for review. Required-field additions or meaning changes need a new
-version. CI regenerates types and checks drift, then runs identical payload fixtures
-through both validators. Test unknown versus absent values, units, timestamps,
+version. CI re-exports OpenAPI and JSON Schemas, checks drift, regenerates web types, and
+runs the shared fixtures through Pydantic and `jsonschema`. Test unknown versus absent values, units, timestamps,
 additional fields, and nested errors. Validate service-specific semantics in domain
 logic after structural validation.
 
-References: [Fastify schema validation](https://fastify.dev/docs/latest/Reference/Validation-and-Serialization/),
+References: [Pydantic JSON Schema](https://docs.pydantic.dev/latest/concepts/json_schema/),
+[openapi-typescript](https://openapi-ts.dev/),
 [Python jsonschema](https://python-jsonschema.readthedocs.io/en/stable/).

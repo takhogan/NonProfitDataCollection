@@ -27,7 +27,7 @@ everywhere except production. Conversation logic lives in the
   account. It covers WA-010–013, WA-030–033, and WA-061. The production adapter is
   accepted only when the suite passes.
 - **WA-002b (P0, D18) Integration agreement.** A short written agreement settles who
-  hosts the webhook (`API-080`), where secrets live, who registers and approves each
+  hosts the webhook (`API-100`), where secrets live, who registers and approves each
   template in `OPW-033`, how interface changes are versioned, and the joint incident
   contact.
 
@@ -87,7 +87,7 @@ everywhere except production. Conversation logic lives in the
   - Each send returns the provider message ID or a categorized error.
 - **WA-031 (P0) Window metadata.** The adapter exposes the information needed to decide
   between a free-form reply and a template, given the last inbound time. Enforcement
-  belongs to the outbound gate (DOM-071).
+  belongs to the outbound gate (`DOM-061`).
 - **WA-032 (P0) Template registry.** Templates (name, language `es`, category, parameter
   schema, approval status) are kept in configuration. Sending an unregistered or
   unapproved template fails locally without calling the provider.

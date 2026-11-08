@@ -1,16 +1,17 @@
 # Web application
 
-React application for CSL staff, volunteers, and partner organizations; mobile-friendly.
+React application with three surfaces: the provider portal (primary), the operating-NGO console, and an optional public dashboard. Mobile-friendly.
 
 ## Initial screens
 
-- Staff login and authorized organization context.
-- Operations queues: new, urgent, unassigned, handoff, follow-up, stale, not shareable.
-- Household search and profile, contact relationships, assisted intake, and case history.
-- Case detail with independently tracked observations, needs, sharing history, and outcomes.
-- Partner portal: demand map, contactable list, export, and optional outcome reporting.
-- Aggregate area condition and need demand maps.
-- Later: observation review and aggregate geographic dashboard.
+- Sign-in and organization/role context.
+- Provider portal: areas of need, need map, coverage view, area detail, activity log,
+  alerts, exports, API keys, and the opt-in contact list for vetted providers.
+- Operating-NGO console: assisted intake, coverage and data health, report browser,
+  review, meeting points, broadcasts, providers, privacy profile, and public dashboard
+  settings.
+- Public dashboard (optional): coarse, delayed area conditions and public provider
+  activity.
 
 Use shared in-app UI components; a separate design-system package is unnecessary
 initially. Display Spanish intake content, explicit units, local times, and observation
@@ -26,12 +27,14 @@ First deliverable: assisted intake → household case → two open needs.
 
 - TypeScript + React + Vite for a client-rendered staff application.
 - React Router for navigation and TanStack Query for server-state caching and invalidation.
-- React Hook Form for multi-step intake; shared JSON Schema validation at submission.
+- React Hook Form for multi-step intake. API request and response types are generated
+  from the backend's OpenAPI (`openapi-typescript`), and the server is the final
+  validator.
 - CSS Modules and accessible native controls initially; a small shared UI folder.
 - MapLibre GL JS when aggregate mapping is introduced. A map library does not supply
   tiles or grant tile-service rights; select an appropriately licensed basemap separately.
 - Vitest + React Testing Library for important UI behavior; Playwright for the main
-  assisted-intake and partner-sharing journeys.
+  assisted-intake, areas-of-need, and activity-logging journeys.
 
 Deploy the static build to a Render Static Site. Run Vite locally. Use a restricted
 API origin allowlist and an authenticated API session; configure production web/API
@@ -39,20 +42,20 @@ origins together. Runtime versions and package pins will be set during implement
 
 ## Internal layout and data flow
 
-Planned folders: `src/app` (routing/session), `src/features/households`, `cases`,
-`sharing`, `partner`, `review`, and `dashboard`; `src/api` (typed client), `src/ui`
+Planned folders: `src/app` (routing/session), `src/features/areas`, `coverage`,
+`activities`, `alerts`, `contact-list`, `intake`, `review`, `admin`, and `public`; `src/api` (typed client), `src/ui`
 (shared controls), and `src/locales` (Spanish-first labels).
 
-Forms send explicit command payloads and show the server-confirmed result. Capacity
-exports, shares, and dispositions must not be optimistically marked successful.
+Forms send explicit command payloads and show the server-confirmed result. Reports,
+exports, and profile changes must not be optimistically marked successful.
 Include organization context in cache keys and clear sensitive caches on sign-out
 or organization change. Use pagination and coarse-area map queries rather than
-loading every household into the browser.
+loading every report into the browser.
 
 ## Build sequence and verification
 
-Build the application shell, assisted intake, case detail, queues, and partner portal
-in that order. Add review and maps after the underlying data is usable.
+Build the application shell, assisted intake, areas of need and coverage, activity
+logging, and then the map, alerts, API keys, and public dashboard, in that order.
 Verify keyboard operation, Spanish text, narrow screens, save failures, stale
 capacity errors, and cache separation between organizations. Keep unsent personal
 information in memory initially; persistent browser storage needs a deliberate

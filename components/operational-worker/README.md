@@ -2,29 +2,36 @@
 
 Process durable jobs independently from HTTP requests while sharing domain rules.
 
-## Proposed stack and hosting
+## Stack and hosting
 
-Proposal dated 7 November 2026; not provisioned or implemented.
+The stack was decided on 7 November 2026: Python, sharing one codebase with the API.
+The worker is not yet implemented; the API at
+[`whatsapp/api`](../whatsapp/api/README.md) already persists inbound events for it to
+process.
 
-- **Language/runtime:** TypeScript compiled to JavaScript, running on a supported
-  Node.js LTS release. Pin compatible runtime and dependency versions when building.
-- **Queue library:** `pg-boss`, backed by PostgreSQL in a dedicated queue schema.
-  Use the existing managed database initially, with bounded connection pools.
-- **Application logic:** import `domain`, `database`, `contracts`, and `whatsapp`
-  workspace packages. Use the same domain commands as the API.
-- **Packaging:** a Docker image built from the repository root so shared packages
-  are available. Run compiled JavaScript as a long-lived process.
+- **Language/runtime:** Python 3.11+. It is a second entry point of the backend
+  package (for example `python -m app.worker`), not a separate project.
+- **Job execution:** application-owned PostgreSQL tables (`job`, plus the inbox/outbox
+  tables), claimed with `SELECT … FOR UPDATE SKIP LOCKED`. Each claim has a lease
+  expiry, attempt count, and next-run time. There is no external broker and no
+  Node-only queue library.
+- **Application logic:** imports the same `app.domain`, `app.models`, `app.contracts`,
+  and WhatsApp adapter modules as the API, so domain commands are shared rather than
+  duplicated.
+- **Packaging:** the same Docker image as the API, started with the worker command.
 - **Production host:** one continuously running Render Background Worker service
   initially, alongside a Render API web service and managed Render Postgres/PostGIS.
   The worker needs outbound network access but no public HTTP endpoint.
 - **Region:** propose Virginia, USA, with API, worker, and database colocated for
   private networking. Confirm the NGO's hosting/data-location requirements before
   provisioning; this is not a claim that data must or may legally be hosted there.
-- **Local development:** Docker Compose for PostgreSQL/PostGIS, with API and worker
-  running locally through workspace scripts; use the fake WhatsApp adapter.
+- **Local development:** Docker Compose for PostgreSQL/PostGIS, with the API
+  (`uvicorn`) and the worker running locally from the same virtualenv. Use the fake
+  WhatsApp adapter. `SKIP LOCKED` requires PostgreSQL, so the worker is not supported
+  on SQLite.
 
-This choice reuses the existing TypeScript code and PostgreSQL operations. Queue
-traffic shares database capacity with application queries, so monitor contention
+This choice reuses the existing Python code and PostgreSQL operations. Job traffic
+shares database capacity with application queries, so monitor contention
 and connection usage. Budget for continuous worker compute and managed database
 capacity; this proposal does not assume free hosting or a nonprofit discount.
 
@@ -32,7 +39,6 @@ Render documents [continuously running background workers](https://render.com/do
 [Docker deployments](https://render.com/docs/docker),
 [PostGIS support](https://render.com/docs/postgresql-extensions), and
 [same-region private networking](https://render.com/docs/regions).
-[pg-boss](https://github.com/timgit/pg-boss) provides a Node.js/PostgreSQL queue.
 These capabilities were checked for this proposal; cost and deployment sizing are
 still to be established.
 
@@ -47,8 +53,10 @@ still to be established.
 - Accept validated external evidence through domain commands and create review tasks.
   External data retrieval and geospatial processing belong to `data-worker`.
 
-Use pg-boss for scheduling and execution, with application-owned durable inbox and
-outbox records for accepted messages and outbound intents.
+Use the application's PostgreSQL job tables for scheduling and execution, alongside
+durable inbox and outbox records for accepted messages and outbound intents. Periodic
+work (follow-ups, sweeps, data-job scheduling) is enqueued by a scheduler loop in the
+worker, with one idempotency key per time window.
 Use leases, attempt counts, operation IDs, and explicit organization context.
 Do not claim exactly-once network delivery: handle uncertain send outcomes using
 provider capabilities and reconciliation rather than blindly resending.
@@ -75,8 +83,9 @@ that a queue guarantees exactly-once WhatsApp delivery.
 
 Start with separate job types for inbound intake, outbound sending, and status
 updates. The separate Python `data-worker` handles external data retrieval and
-geospatial processing. It does not consume pg-boss jobs or import TypeScript domain
-code. See the [cross-language job contract](../contracts/data-jobs.md).
+geospatial processing. It is a separate project: it does not read these job tables or
+import the backend's domain code. It claims its own data jobs through the internal
+API. See the [cross-language job contract](../contracts/data-jobs.md).
 An accepted data result creates a durable processing intent; this worker applies
 domain commands to link evidence and enqueue human review, without automatically
 denying aid or changing need or sharing decisions.
@@ -85,7 +94,7 @@ denying aid or changing need or sharing decisions.
 
 - Add a worker Dockerfile and a root `render.yaml` during implementation, with
   separate API/worker start commands. They are planned files, not existing setup.
-- Test and build before deployment. Run database and queue-schema migrations once
+- Test and build before deployment. Run Alembic migrations once
   in a controlled release step, with backward-compatible changes during rollouts.
   Do not let every worker replica independently run privileged migrations.
 - Keep credentials in the host's secret configuration. Use separate migration and
@@ -115,14 +124,22 @@ intent, including restart/retry verification.
 
 ## Detailed stack and internal modules
 
-Use TypeScript, Node.js LTS, pg-boss, the shared `pg` persistence package, Pino JSON
-logging, and Vitest. Build with the pnpm workspace and `tsc`; ship a production Docker
-image with compiled code and runtime dependencies. There is no separate HTTP framework
-inside the worker. Choose compatible pinned versions as part of the first build.
+- Python with SQLAlchemy 2.0 sessions (psycopg 3), HTTPX for provider calls,
+  standard-library JSON logging, and pytest against real PostgreSQL.
+- There is no HTTP framework inside the worker. It runs a synchronous claim loop
+  with a small thread pool. Use asyncio only if measurement shows it is needed.
+- Handlers time out with per-job deadlines. Graceful shutdown is driven by SIGTERM.
 
-Planned modules: `src/bootstrap` (config/start/stop), `src/dispatchers` (inbox/outbox),
-`src/handlers` (typed jobs), `src/conversations` (intake orchestration), and
-`src/telemetry` (heartbeat and counters). Business mutations still use `domain`.
+Planned modules inside the backend package:
+
+- `app/worker/main.py`: config, start, and stop
+- `app/worker/claim.py`: `SKIP LOCKED` claims, leases, and retries
+- `app/worker/dispatchers.py`: inbox and outbox scans
+- `app/worker/handlers/`: typed jobs
+- `app/conversations/`: the intake state machine
+- `app/worker/telemetry.py`: heartbeat and counters
+
+Business mutations still go through `app.domain`.
 
 ## Initial job catalog
 

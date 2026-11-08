@@ -24,12 +24,21 @@ retry behavior and delivery guarantees before relying on them.
 First deliverable: a fake adapter capable of completing the Spanish intake locally
 without contacting real people.
 
-## Proposed tech stack and deployment
+## Tech stack and deployment
 
-TypeScript on Node.js with built-in `fetch` for provider HTTP calls, `node:crypto`
-for signature primitives, and shared JSON contracts for normalized events. Use Vitest
-and a fake HTTP transport for provider fixtures and retry/error scenarios. This is a
-library packaged into API and operational-worker images, not an independent server.
+The stack was decided on 7 November 2026: Python, inside the backend package.
+
+- HTTPX is used for provider HTTP calls, and `hmac`/`hashlib` for signature checks
+  (`hmac.compare_digest`).
+- Pydantic models carry the normalized events.
+- The adapter interface is a `typing.Protocol`.
+- Tests use pytest with an HTTPX mock transport for provider fixtures and for
+  retry/error scenarios.
+
+This is a module used by the API (webhooks) and the operational worker (sends), not an
+independent server. Today the webhook verification and inbound persistence live in
+`whatsapp/api/app/routers/webhooks.py`. As the adapter grows, move the provider-specific
+parts behind the `WA-001` interface.
 
 The live implementation is a direct Meta Cloud API adapter built by a separate
 contributor against this repo's interface and conformance suite (see
