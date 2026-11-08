@@ -1,0 +1,14 @@
+{
+  "schema_version": "1",
+  "event_id": "00000000-0000-4000-8000-000000000100",
+  "provider": "meta_cloud",
+  "channel_account_id": "106540352242922",
+  "provider_message_id": "wamid.HBgMNTgxMjM0NTY3ODkwFQIAEhgg",
+  "sender": "+584121234567",
+  "provider_timestamp": "2026-11-07T10:00:00",
+  "received_at": "2026-11-07T10:00:01.250Z",
+  "content": {
+    "type": "text",
+    "body": "Hola, no hay luz en el sector"
+  }
+}

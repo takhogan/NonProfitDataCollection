@@ -1,0 +1,252 @@
+{
+  "schema_version": "1",
+  "key": "csl_report",
+  "version": 1,
+  "locale": "es",
+  "title": {
+    "es": "Reporte de servicios",
+    "en": "Service report"
+  },
+  "start": "relationship",
+  "steps": [
+    {
+      "id": "relationship",
+      "prompt": {
+        "es": "¿Sobre quién nos cuentas?"
+      },
+      "maps_to": "relationship",
+      "allow_unknown": false,
+      "required": true,
+      "question": {
+        "type": "choice",
+        "multiple": false,
+        "options": [
+          {
+            "id": "self",
+            "label": {
+              "es": "Sobre mí"
+            }
+          },
+          {
+            "id": "household",
+            "label": {
+              "es": "Mi hogar"
+            }
+          },
+          {
+            "id": "other_person",
+            "label": {
+              "es": "Otra persona"
+            }
+          },
+          {
+            "id": "area",
+            "label": {
+              "es": "Mi sector en general"
+            }
+          }
+        ]
+      },
+      "branches": [],
+      "next": "area"
+    },
+    {
+      "id": "area",
+      "prompt": {
+        "es": "¿En qué sector?"
+      },
+      "maps_to": "area",
+      "allow_unknown": false,
+      "required": true,
+      "question": {
+        "type": "area",
+        "levels": [
+          "parish",
+          "sector"
+        ]
+      },
+      "branches": [
+        {
+          "when": [
+            {
+              "step_id": "relationship",
+              "op": "equals",
+              "values": [
+                "area"
+              ]
+            }
+          ],
+          "goto": "electricity"
+        }
+      ],
+      "next": "meeting_point"
+    },
+    {
+      "id": "meeting_point",
+      "prompt": {
+        "es": "¿Cuál punto de encuentro te queda más cerca?"
+      },
+      "maps_to": "location.meeting_point_id",
+      "allow_unknown": true,
+      "unknown_label": {
+        "es": "Ninguno cerca"
+      },
+      "required": false,
+      "profiles": [
+        "protective"
+      ],
+      "question": {
+        "type": "choice",
+        "multiple": false,
+        "options": [
+          {
+            "id": "mp_plaza",
+            "label": {
+              "es": "Plaza Bolívar"
+            }
+          },
+          {
+            "id": "mp_iglesia",
+            "label": {
+              "es": "Iglesia San José"
+            }
+          }
+        ]
+      },
+      "branches": [],
+      "next": "electricity"
+    },
+    {
+      "id": "electricity",
+      "prompt": {
+        "es": "¿Hay luz ahora?"
+      },
+      "maps_to": "observations[electricity].status",
+      "allow_unknown": true,
+      "required": true,
+      "question": {
+        "type": "choice",
+        "multiple": false,
+        "options": [
+          {
+            "id": "available",
+            "label": {
+              "es": "Sí"
+            }
+          },
+          {
+            "id": "unavailable",
+            "label": {
+              "es": "No"
+            }
+          },
+          {
+            "id": "intermittent",
+            "label": {
+              "es": "Va y viene"
+            }
+          }
+        ]
+      },
+      "branches": [
+        {
+          "when": [
+            {
+              "step_id": "electricity",
+              "op": "in",
+              "values": [
+                "unavailable",
+                "intermittent"
+              ]
+            }
+          ],
+          "goto": "electricity_since"
+        }
+      ],
+      "next": "needs"
+    },
+    {
+      "id": "electricity_since",
+      "prompt": {
+        "es": "¿Desde hace cuánto?"
+      },
+      "maps_to": "observations[electricity].outage_since",
+      "allow_unknown": true,
+      "required": false,
+      "question": {
+        "type": "time_ago",
+        "options": [
+          {
+            "id": "lt_6h",
+            "label": {
+              "es": "Menos de 6 horas"
+            },
+            "hours_ago_min": 0,
+            "hours_ago_max": 6
+          },
+          {
+            "id": "gt_24h",
+            "label": {
+              "es": "Más de un día"
+            },
+            "hours_ago_min": 24
+          }
+        ]
+      },
+      "branches": [],
+      "next": "needs"
+    },
+    {
+      "id": "needs",
+      "prompt": {
+        "es": "¿Qué necesitas?"
+      },
+      "maps_to": "needs.categories",
+      "allow_unknown": false,
+      "required": false,
+      "question": {
+        "type": "choice",
+        "multiple": true,
+        "options": [
+          {
+            "id": "water_drinking",
+            "label": {
+              "es": "Agua para tomar"
+            }
+          },
+          {
+            "id": "water_other",
+            "label": {
+              "es": "Agua para otros usos"
+            }
+          },
+          {
+            "id": "charging",
+            "label": {
+              "es": "Cargar teléfonos"
+            }
+          }
+        ]
+      },
+      "branches": [],
+      "next": "people"
+    },
+    {
+      "id": "people",
+      "prompt": {
+        "es": "¿Cuántas personas?"
+      },
+      "maps_to": "needs[water_drinking].people_affected",
+      "allow_unknown": true,
+      "required": false,
+      "question": {
+        "type": "number",
+        "minimum": 1,
+        "maximum": 50,
+        "unit": "people"
+      },
+      "branches": [],
+      "next": "end"
+    }
+  ]
+}

@@ -1,0 +1,38 @@
+{
+  "id": "00000000-0000-4000-8000-000000000700",
+  "version": 1,
+  "name": "protective",
+  "notice_version": 1,
+  "settings": {
+    "names_allowed": false,
+    "location_mode": "meeting_point",
+    "gps_allowed": true,
+    "reporter_phone_retention": {
+      "mode": "while_consented",
+      "days_after_last_activity": 7
+    },
+    "household_records_allowed": false,
+    "contact_list_enabled": true,
+    "contact_list_fields": [
+      "alias",
+      "sector",
+      "meeting_point",
+      "phone"
+    ],
+    "public_dashboard": {
+      "enabled": false,
+      "level": "parish",
+      "k": 10,
+      "delay_hours": 24
+    },
+    "aggregate_k": 5
+  },
+  "platform_minimums": {
+    "aggregate_k": 3,
+    "public_k": 3,
+    "protective_public_k": 10,
+    "protective_public_delay_hours": 24
+  },
+  "status": "active",
+  "activated_at": "2026-11-07T10:00:00Z"
+}

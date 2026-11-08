@@ -1,4 +1,11 @@
-"""Assisted-intake request and household detail response contracts.
+"""DEPRECATED: household/case contracts from the first intake slice.
+
+Superseded by the report-centric v1 contracts (``reports``, ``aggregation``,
+``providers``). Kept only until the api session migrates its routers; do not use
+in new code. Note the old need categories (``water_delivery``, ``charging_access``)
+and units (``device_sessions``) are not valid in v1.
+
+Assisted-intake request and household detail response contracts.
 
 These are the API boundary types; they do not expose raw DB rows. Units stay
 explicit (liters vs device sessions); unknown stays unknown rather than defaulting

@@ -1,0 +1,10 @@
+{
+  "schema_version": "1",
+  "informant_id": "inf_7f3a9c21",
+  "service": "piped_water",
+  "status": "unknown",
+  "observed_at": "2026-11-07T08:00:00Z",
+  "observed_at_precision": "day",
+  "submitted_at": "2026-11-07T10:00:00Z",
+  "area_alias": "Catia, sector Los Magallanes"
+}

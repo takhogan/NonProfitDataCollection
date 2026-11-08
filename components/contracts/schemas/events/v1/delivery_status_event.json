@@ -1,0 +1,134 @@
+{
+  "$defs": {
+    "DeliveryError": {
+      "additionalProperties": false,
+      "properties": {
+        "category": {
+          "enum": [
+            "rate_limited",
+            "transient",
+            "outside_window",
+            "template_not_approved",
+            "recipient_unavailable",
+            "invalid_request",
+            "auth",
+            "unknown_outcome"
+          ],
+          "title": "Category",
+          "type": "string"
+        },
+        "provider_code": {
+          "pattern": "^[A-Za-z0-9_.-]{1,64}$",
+          "title": "Provider Code",
+          "type": "string"
+        }
+      },
+      "required": [
+        "category"
+      ],
+      "title": "DeliveryError",
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "else": {
+    "not": {
+      "required": [
+        "error"
+      ]
+    }
+  },
+  "if": {
+    "properties": {
+      "status": {
+        "const": "failed"
+      }
+    }
+  },
+  "properties": {
+    "channel_account_id": {
+      "maxLength": 256,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9._:=+/-]+$",
+      "title": "Channel Account Id",
+      "type": "string"
+    },
+    "error": {
+      "$ref": "#/$defs/DeliveryError",
+      "description": "Present exactly when status is 'failed'."
+    },
+    "event_id": {
+      "format": "uuid",
+      "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+      "title": "Event Id",
+      "type": "string"
+    },
+    "provider": {
+      "enum": [
+        "meta_cloud",
+        "fake"
+      ],
+      "title": "Provider",
+      "type": "string"
+    },
+    "provider_message_id": {
+      "maxLength": 256,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9._:=+/-]+$",
+      "title": "Provider Message Id",
+      "type": "string"
+    },
+    "provider_timestamp": {
+      "format": "date-time",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]{1,6})?(Z|\\+00:00)$",
+      "title": "Provider Timestamp",
+      "type": "string"
+    },
+    "received_at": {
+      "format": "date-time",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]{1,6})?(Z|\\+00:00)$",
+      "title": "Received At",
+      "type": "string"
+    },
+    "recipient": {
+      "pattern": "^\\+[1-9][0-9]{6,14}$",
+      "title": "Recipient",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": "1",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "status": {
+      "enum": [
+        "sent",
+        "delivered",
+        "read",
+        "failed"
+      ],
+      "title": "Status",
+      "type": "string"
+    }
+  },
+  "required": [
+    "schema_version",
+    "event_id",
+    "provider",
+    "channel_account_id",
+    "provider_message_id",
+    "recipient",
+    "status",
+    "provider_timestamp",
+    "received_at"
+  ],
+  "then": {
+    "required": [
+      "error"
+    ]
+  },
+  "title": "DeliveryStatusEvent",
+  "type": "object",
+  "x-contract-version": "v1"
+}

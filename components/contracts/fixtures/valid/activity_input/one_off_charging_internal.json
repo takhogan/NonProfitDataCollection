@@ -1,0 +1,22 @@
+{
+  "type": "charging_point",
+  "category": "charging",
+  "area_ids": [
+    "00000000-0000-4000-8000-000000000002"
+  ],
+  "schedule": {
+    "kind": "one_off",
+    "date": "2026-11-08",
+    "start_time": "14:00",
+    "end_time": "18:00",
+    "timezone": "America/Caracas"
+  },
+  "capacity": {
+    "value": 40,
+    "unit": "devices",
+    "per": "day"
+  },
+  "visibility": "internal_only",
+  "status": "active",
+  "operation_key": "act:prov1:0002"
+}

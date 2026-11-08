@@ -1,0 +1,22 @@
+{
+  "row_id": "00000000-0000-4000-8000-000000000600",
+  "need_id": "00000000-0000-4000-8000-000000000006",
+  "category": "water_drinking",
+  "urgency": "urgent",
+  "preferred_times": [
+    "morning"
+  ],
+  "phone": "+584121234567",
+  "consented_at": "2026-11-07T10:00:00Z",
+  "profile": "protective",
+  "alias": "R-7F3A",
+  "sector": {
+    "area_id": "00000000-0000-4000-8000-000000000002",
+    "level": "sector"
+  },
+  "meeting_point": {
+    "meeting_point_id": "00000000-0000-4000-8000-000000000004",
+    "name": "Plaza Bolívar"
+  },
+  "name": "María Pérez"
+}
