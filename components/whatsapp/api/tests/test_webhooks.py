@@ -86,17 +86,31 @@ def test_post_routes_status_event(client, db_session, monkeypatch):
     assert ev.event_type == "status"
 
 
-def test_bad_signature_still_200_but_flagged(client, db_session, monkeypatch):
-    # We persist even unverified events (quarantine), flagged signature_valid=False,
-    # and always ack 200 so the provider does not hammer retries.
+def test_bad_signature_rejected_and_not_stored(client, db_session, monkeypatch):
     monkeypatch.setattr(get_settings(), "app_secret", "test-secret")
     raw = json.dumps(MESSAGE_PAYLOAD).encode()
     resp = client.post(
         "/webhooks/whatsapp", content=raw, headers={"X-Hub-Signature-256": "sha256=deadbeef"}
     )
-    assert resp.status_code == 200
-    ev = db_session.query(InboundEvent).one()
-    assert ev.signature_valid is False
+    assert resp.status_code == 401
+    assert db_session.query(InboundEvent).count() == 0
+
+
+def test_missing_signature_rejected(client, db_session, monkeypatch):
+    monkeypatch.setattr(get_settings(), "app_secret", "test-secret")
+    resp = client.post("/webhooks/whatsapp", content=json.dumps(MESSAGE_PAYLOAD).encode())
+    assert resp.status_code == 401
+    assert db_session.query(InboundEvent).count() == 0
+
+
+def test_unconfigured_app_secret_refuses_posts(client, db_session, monkeypatch):
+    monkeypatch.setattr(get_settings(), "app_secret", "")
+    raw = json.dumps(MESSAGE_PAYLOAD).encode()
+    resp = client.post(
+        "/webhooks/whatsapp", content=raw, headers={"X-Hub-Signature-256": "sha256=x"}
+    )
+    assert resp.status_code == 503
+    assert db_session.query(InboundEvent).count() == 0
 
 
 def test_duplicate_provider_message_deduped(client, db_session, monkeypatch):
