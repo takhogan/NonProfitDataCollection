@@ -126,7 +126,7 @@ you to type `deploy` (`--yes` skips this; without a terminal it refuses unless `
 
 | Target | What runs | Notes |
 |---|---|---|
-| `api` | `components/whatsapp/api/deploy/gcloud-deploy.sh deploy` | Cloud Build image, then the `aid-migrate` Cloud Run job runs `alembic upgrade head` and waits, then the `whatsapp-webhook` service. See [DEPLOY.md](components/whatsapp/api/DEPLOY.md). The worker service (`aid-worker`) is **not** deployed; it is not approved yet. |
+| `api` | `components/whatsapp/api/deploy/gcloud-deploy.sh deploy` | Cloud Build image, then the `aid-migrate` Cloud Run job runs `alembic upgrade head` and waits, then the `whatsapp-webhook` service, then the `aid-worker` service (inbox poller and reply sender, `min-instances=1`). See [DEPLOY.md](components/whatsapp/api/DEPLOY.md). |
 | `dashboard` | `gcloud builds submit --config components/cloudbuild.dashboard.yaml`, then `components/api/deploy/gcloud-deploy.sh grant service url` with `SERVICE=metron-api` | Cloud Run `metron-api`, same image tag. `WEB_ORIGINS` (CORS) is set by `scripts/deploy.sh`. That script's own `build` step does not work: `gcloud builds submit` has no `-f` flag. Runs after `api` because it reads the schema the api migrates. |
 | `web` | `gcloud run deploy metron-web --source .` in `components/web` | The Metron frontend: [Dockerfile](components/web/Dockerfile) builds Vite against `metron-api` and serves it with nginx. |
 | `site` | `firebase deploy --only hosting` in `components/web` | https://metron-reporter.web.app: `/privacidad` (Meta's privacy URL) is static, everything else is rewritten to `metron-web`. See [HOSTING.md](components/web/HOSTING.md). |

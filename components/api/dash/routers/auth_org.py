@@ -42,12 +42,15 @@ def signup(body: S.SignupRequest, db: Session = Depends(get_db)) -> S.TokenRespo
     db.add(models.OrganizationMembership(
         organization_id=org.id, user_id=user.id, role="org_admin", status="active",
     ))
-    db.commit()
     # Dashboard-managed org settings defaults (durable, in policy_version).
+    # One transaction: a failure here must not leave an org and user behind
+    # (the email would then be "already registered" on retry).
     settings_store.put_setting(db, org.id, "profile", {
-        **_DEFAULT_PROFILE, "name": body.org_name, "type": body.org_type})
-    settings_store.put_setting(db, org.id, "data_protection", {"preset": "standard"})
-    settings_store.put_setting(db, org.id, "channels", _DEFAULT_CHANNELS)
+        **_DEFAULT_PROFILE, "name": body.org_name, "type": body.org_type}, commit=False)
+    settings_store.put_setting(db, org.id, "data_protection", {"preset": "standard"},
+                               commit=False)
+    settings_store.put_setting(db, org.id, "channels", _DEFAULT_CHANNELS, commit=False)
+    db.commit()
     return S.TokenResponse(access_token=create_access_token(user.id))
 
 

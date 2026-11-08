@@ -9,9 +9,9 @@
 # Targets run in this order, whatever order you give them:
 #   api        components/whatsapp/api -> ./deploy/gcloud-deploy.sh deploy
 #              (Cloud Build image, then the `aid-migrate` Cloud Run job runs
-#              `alembic upgrade head` (--wait), then the whatsapp-webhook service).
-#              The background worker service (aid-worker) is NOT deployed:
-#              it is not approved yet (min-instances=1 cost). See DEPLOY.md section 8.
+#              `alembic upgrade head` (--wait), then the whatsapp-webhook service,
+#              then the aid-worker service (inbox poller + reply sender,
+#              min-instances=1). See DEPLOY.md section 8.
 #   dashboard  components/api -> Cloud Run service metron-api: image built with
 #              components/cloudbuild.dashboard.yaml, then
 #              components/api/deploy/gcloud-deploy.sh grant + service + url with the
@@ -157,7 +157,7 @@ fi
 bold "Plan"
 for t in "${ORDERED[@]}"; do
   case "$t" in
-    api) echo "  api        build aid-api:$GIT_SHA, run migrations (aid-migrate job), deploy $API_SERVICE" ;;
+    api) echo "  api        build aid-api:$GIT_SHA, run migrations (aid-migrate job), deploy $API_SERVICE and aid-worker" ;;
     dashboard) echo "  dashboard  build dashboard-api:$GIT_SHA, deploy $DASH_SERVICE" ;;
     web) echo "  web        build components/web from source, deploy $WEB_SERVICE" ;;
     site) echo "  site       firebase deploy --only hosting (metron-reporter.web.app -> /privacidad + $WEB_SERVICE)" ;;

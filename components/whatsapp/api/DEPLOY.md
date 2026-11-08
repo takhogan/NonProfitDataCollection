@@ -284,6 +284,12 @@ Notes:
 - `--no-cpu-throttling` lets the loop run between HTTP requests (the worker has
   no HTTP traffic, so without this its CPU would be throttled to near zero).
 - `--no-allow-unauthenticated`: the worker exposes no public surface.
+- Cloud Run's startup probe needs something listening on `$PORT` (8080), or it
+  kills the instance after 4 minutes and marks the revision failed. The worker
+  therefore answers `GET /health` on `$PORT` from a background thread. It only
+  does this when `PORT` is set, so local runs open no port.
+- `deploy/gcloud-deploy.sh worker` (also part of `deploy` and `npm run deploy:api`)
+  runs this command.
 
 > **Re-run migrations before deploying this version** — it adds the
 > `outbound_message` table. `gcloud run jobs execute aid-migrate --region=$REGION --wait`.

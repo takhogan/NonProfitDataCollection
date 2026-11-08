@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
-# Deploy the WhatsApp webhook (FastAPI app) to Cloud Run in its own GCP project.
+# Deploy the WhatsApp webhook (FastAPI app) and its worker to Cloud Run in its own GCP project.
 #
 #   deploy/gcloud-deploy.sh <step>      # run one step
 #   deploy/gcloud-deploy.sh all         # run every step in order (new project)
-#   deploy/gcloud-deploy.sh deploy      # redeploy code: build migrate service url
+#   deploy/gcloud-deploy.sh deploy      # redeploy code: build migrate service worker url
 #
-# Steps: project apis registry build sql sa secrets migrate service url
+# Steps: project apis registry build sql sa secrets migrate service worker url
 #
 # Every step is safe to re-run (it skips what already exists), except `build`,
-# `migrate` and `service`, which roll out a new image/revision each time.
+# `migrate`, `service` and `worker`, which roll out a new image/revision each time.
 #
 # Secrets: values are generated here or read from stdin and piped straight into
 # Secret Manager. They never touch the repo, the image, or command-line flags,
@@ -27,6 +27,8 @@ SQL_INSTANCE="${SQL_INSTANCE:-aid-pg}"
 DB_NAME="${DB_NAME:-aid}"
 DB_USER="${DB_USER:-aid_app}"
 RUN_SA_NAME="${RUN_SA_NAME:-webhook-run}"
+WORKER_SERVICE="${WORKER_SERVICE:-aid-worker}"
+PILOT_ORG_NAME="${PILOT_ORG_NAME:-Agua Azul}"   # "Somos <name>." in the greeting
 
 IMAGE_TAG="${IMAGE_TAG:-$(git rev-parse --short HEAD 2>/dev/null || date +%s)}"
 IMAGE="$REGION-docker.pkg.dev/$PROJECT_ID/$REPO/aid-api:$IMAGE_TAG"
@@ -174,6 +176,20 @@ step_service() {
     --set-env-vars=APP_ENV=production "$(secret_flags)"
 }
 
+step_worker() {
+  # Inbox poller + outbound sender (python -m scripts.worker). Private, one
+  # always-on instance with unthrottled CPU so the loop runs between requests.
+  # It answers GET /health on $PORT only so Cloud Run's startup probe passes.
+  g run deploy "$WORKER_SERVICE" --region="$REGION" --image="$IMAGE" \
+    --service-account="$RUN_SA" \
+    --no-allow-unauthenticated --port=8080 \
+    --min-instances=1 --max-instances=1 --no-cpu-throttling --cpu=1 --memory=512Mi \
+    --set-cloudsql-instances="$(sql_conn)" \
+    --set-env-vars="APP_ENV=production,WHATSAPP_ADAPTER=graph,PILOT_ORG_NAME=$PILOT_ORG_NAME" \
+    "$(secret_flags)" \
+    --command=python --args=-m,scripts.worker
+}
+
 step_url() {
   local url
   url="$(g run services describe "$SERVICE" --region="$REGION" --format='value(status.url)')"
@@ -188,16 +204,16 @@ step_deploy() {
     echo "Uncommitted changes in $(pwd); commit or stash them first." >&2
     exit 1
   fi
-  for s in build migrate service url; do echo "== $s"; "step_$s"; done
+  for s in build migrate service worker url; do echo "== $s"; "step_$s"; done
 }
 
 main() {
   local s="${1:-}"
   case "$s" in
     deploy) step_deploy ;;
-    all) for s in project apis registry build sql sa secrets migrate service url; do
+    all) for s in project apis registry build sql sa secrets migrate service worker url; do
            echo "== $s"; "step_$s"; done ;;
-    project|apis|registry|build|sql|sa|secrets|migrate|service|url) "step_$s" ;;
+    project|apis|registry|build|sql|sa|secrets|migrate|service|worker|url) "step_$s" ;;
     *) sed -n '2,17p' "$0"; exit 1 ;;
   esac
 }
