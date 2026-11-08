@@ -1,0 +1,443 @@
+{
+  "$defs": {
+    "AreaQuestion": {
+      "additionalProperties": false,
+      "properties": {
+        "levels": {
+          "items": {
+            "enum": [
+              "state",
+              "municipality",
+              "parish",
+              "sector"
+            ],
+            "type": "string"
+          },
+          "maxItems": 4,
+          "minItems": 1,
+          "title": "Levels",
+          "type": "array"
+        },
+        "type": {
+          "const": "area",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "levels"
+      ],
+      "title": "AreaQuestion",
+      "type": "object"
+    },
+    "Branch": {
+      "additionalProperties": false,
+      "properties": {
+        "goto": {
+          "pattern": "^[a-z0-9][a-z0-9_.-]{0,63}$",
+          "title": "Goto",
+          "type": "string"
+        },
+        "when": {
+          "items": {
+            "$ref": "#/$defs/Condition"
+          },
+          "maxItems": 5,
+          "minItems": 1,
+          "title": "When",
+          "type": "array"
+        }
+      },
+      "required": [
+        "when",
+        "goto"
+      ],
+      "title": "Branch",
+      "type": "object"
+    },
+    "ChoiceOption": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "pattern": "^[a-z0-9][a-z0-9_.-]{0,63}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "label": {
+          "$ref": "#/$defs/LocalizedText"
+        },
+        "value": {
+          "description": "The enum value written to the mapped field (defaults to the option id).",
+          "pattern": "^[a-z0-9_]{1,64}$",
+          "title": "Value",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "label"
+      ],
+      "title": "ChoiceOption",
+      "type": "object"
+    },
+    "ChoiceQuestion": {
+      "additionalProperties": false,
+      "properties": {
+        "multiple": {
+          "title": "Multiple",
+          "type": "boolean"
+        },
+        "options": {
+          "items": {
+            "$ref": "#/$defs/ChoiceOption"
+          },
+          "maxItems": 10,
+          "minItems": 1,
+          "title": "Options",
+          "type": "array"
+        },
+        "type": {
+          "const": "choice",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "options",
+        "multiple"
+      ],
+      "title": "ChoiceQuestion",
+      "type": "object"
+    },
+    "Condition": {
+      "additionalProperties": false,
+      "description": "Branch condition on an earlier step's answer.",
+      "properties": {
+        "op": {
+          "enum": [
+            "equals",
+            "in",
+            "is_unknown",
+            "answered"
+          ],
+          "title": "Op",
+          "type": "string"
+        },
+        "step_id": {
+          "pattern": "^[a-z0-9][a-z0-9_.-]{0,63}$",
+          "title": "Step Id",
+          "type": "string"
+        },
+        "values": {
+          "items": {
+            "pattern": "^[a-z0-9][a-z0-9_.-]{0,63}$",
+            "type": "string"
+          },
+          "maxItems": 10,
+          "title": "Values",
+          "type": "array"
+        }
+      },
+      "required": [
+        "step_id",
+        "op"
+      ],
+      "title": "Condition",
+      "type": "object"
+    },
+    "LocalizedText": {
+      "additionalProperties": false,
+      "description": "Spanish (Venezuelan) is required; English is optional for staff UIs.",
+      "properties": {
+        "en": {
+          "maxLength": 1024,
+          "minLength": 1,
+          "title": "En",
+          "type": "string"
+        },
+        "es": {
+          "maxLength": 1024,
+          "minLength": 1,
+          "title": "Es",
+          "type": "string"
+        }
+      },
+      "required": [
+        "es"
+      ],
+      "title": "LocalizedText",
+      "type": "object"
+    },
+    "NumberQuestion": {
+      "additionalProperties": false,
+      "properties": {
+        "maximum": {
+          "maximum": 1000000,
+          "minimum": 1,
+          "title": "Maximum",
+          "type": "integer"
+        },
+        "minimum": {
+          "minimum": 0,
+          "title": "Minimum",
+          "type": "integer"
+        },
+        "type": {
+          "const": "number",
+          "title": "Type",
+          "type": "string"
+        },
+        "unit": {
+          "enum": [
+            "liters",
+            "people",
+            "devices"
+          ],
+          "title": "Unit",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "minimum",
+        "maximum"
+      ],
+      "title": "NumberQuestion",
+      "type": "object"
+    },
+    "Step": {
+      "additionalProperties": false,
+      "properties": {
+        "allow_unknown": {
+          "description": "Offer 'No sé'; the answer maps to 'unknown'.",
+          "title": "Allow Unknown",
+          "type": "boolean"
+        },
+        "branches": {
+          "items": {
+            "$ref": "#/$defs/Branch"
+          },
+          "maxItems": 10,
+          "title": "Branches",
+          "type": "array"
+        },
+        "id": {
+          "pattern": "^[a-z0-9][a-z0-9_.-]{0,63}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "maps_to": {
+          "title": "Maps To",
+          "type": "string"
+        },
+        "next": {
+          "description": "Default next step id, or 'end'.",
+          "pattern": "^[a-z0-9][a-z0-9_.-]{0,63}$",
+          "title": "Next",
+          "type": "string"
+        },
+        "profiles": {
+          "description": "Profiles that show this step; omitted = all. Address steps are standard-only.",
+          "items": {
+            "enum": [
+              "protective",
+              "standard"
+            ],
+            "type": "string"
+          },
+          "maxItems": 2,
+          "minItems": 1,
+          "title": "Profiles",
+          "type": "array"
+        },
+        "prompt": {
+          "$ref": "#/$defs/LocalizedText"
+        },
+        "question": {
+          "discriminator": {
+            "mapping": {
+              "area": "#/$defs/AreaQuestion",
+              "choice": "#/$defs/ChoiceQuestion",
+              "number": "#/$defs/NumberQuestion",
+              "text": "#/$defs/TextQuestion",
+              "time_ago": "#/$defs/TimeAgoQuestion"
+            },
+            "propertyName": "type"
+          },
+          "oneOf": [
+            {
+              "$ref": "#/$defs/ChoiceQuestion"
+            },
+            {
+              "$ref": "#/$defs/TextQuestion"
+            },
+            {
+              "$ref": "#/$defs/NumberQuestion"
+            },
+            {
+              "$ref": "#/$defs/AreaQuestion"
+            },
+            {
+              "$ref": "#/$defs/TimeAgoQuestion"
+            }
+          ],
+          "title": "Question"
+        },
+        "required": {
+          "title": "Required",
+          "type": "boolean"
+        },
+        "unknown_label": {
+          "$ref": "#/$defs/LocalizedText"
+        }
+      },
+      "required": [
+        "id",
+        "prompt",
+        "question",
+        "maps_to",
+        "allow_unknown",
+        "required",
+        "branches",
+        "next"
+      ],
+      "title": "Step",
+      "type": "object"
+    },
+    "TextQuestion": {
+      "additionalProperties": false,
+      "properties": {
+        "max_length": {
+          "maximum": 2000,
+          "minimum": 1,
+          "title": "Max Length",
+          "type": "integer"
+        },
+        "type": {
+          "const": "text",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "max_length"
+      ],
+      "title": "TextQuestion",
+      "type": "object"
+    },
+    "TimeAgoOption": {
+      "additionalProperties": false,
+      "properties": {
+        "hours_ago_max": {
+          "description": "Omitted = open-ended.",
+          "minimum": 0,
+          "title": "Hours Ago Max",
+          "type": "integer"
+        },
+        "hours_ago_min": {
+          "minimum": 0,
+          "title": "Hours Ago Min",
+          "type": "integer"
+        },
+        "id": {
+          "pattern": "^[a-z0-9][a-z0-9_.-]{0,63}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "label": {
+          "$ref": "#/$defs/LocalizedText"
+        }
+      },
+      "required": [
+        "id",
+        "label",
+        "hours_ago_min"
+      ],
+      "title": "TimeAgoOption",
+      "type": "object"
+    },
+    "TimeAgoQuestion": {
+      "additionalProperties": false,
+      "description": "'¿Desde hace cuánto?' — answers become approximate instants.",
+      "properties": {
+        "options": {
+          "items": {
+            "$ref": "#/$defs/TimeAgoOption"
+          },
+          "maxItems": 10,
+          "minItems": 1,
+          "title": "Options",
+          "type": "array"
+        },
+        "type": {
+          "const": "time_ago",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "options"
+      ],
+      "title": "TimeAgoQuestion",
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "A versioned questionnaire. Validated against its schema; never executed.",
+  "properties": {
+    "key": {
+      "pattern": "^[a-z0-9][a-z0-9_.-]{0,63}$",
+      "title": "Key",
+      "type": "string"
+    },
+    "locale": {
+      "const": "es",
+      "title": "Locale",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": "1",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "start": {
+      "pattern": "^[a-z0-9][a-z0-9_.-]{0,63}$",
+      "title": "Start",
+      "type": "string"
+    },
+    "steps": {
+      "items": {
+        "$ref": "#/$defs/Step"
+      },
+      "maxItems": 60,
+      "minItems": 1,
+      "title": "Steps",
+      "type": "array"
+    },
+    "title": {
+      "$ref": "#/$defs/LocalizedText"
+    },
+    "version": {
+      "minimum": 1,
+      "title": "Version",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "schema_version",
+    "key",
+    "version",
+    "locale",
+    "title",
+    "start",
+    "steps"
+  ],
+  "title": "QuestionnaireDefinition",
+  "type": "object",
+  "x-contract-version": "v1"
+}

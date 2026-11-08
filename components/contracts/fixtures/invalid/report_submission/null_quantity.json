@@ -1,0 +1,103 @@
+{
+  "channel": "whatsapp",
+  "relationship": "household",
+  "area": {
+    "area_id": "00000000-0000-4000-8000-000000000002",
+    "level": "sector"
+  },
+  "location": {
+    "kind": "meeting_point",
+    "meeting_point_id": "00000000-0000-4000-8000-000000000004"
+  },
+  "observations": [
+    {
+      "service": "electricity",
+      "status": "unavailable",
+      "observed_at": {
+        "precision": "exact",
+        "at": "2026-11-07T10:00:00Z"
+      },
+      "outage_since": {
+        "precision": "approximate",
+        "at": "2026-11-06T22:00:00Z"
+      }
+    },
+    {
+      "service": "piped_water",
+      "status": "unknown",
+      "observed_at": {
+        "precision": "unknown"
+      }
+    }
+  ],
+  "needs": [
+    {
+      "category": "water_drinking",
+      "people_affected": 4,
+      "quantity": null,
+      "remaining_supply": "little",
+      "stated_urgency": "urgent",
+      "access_notes": [
+        "no_containers"
+      ],
+      "preferred_times": [
+        "morning"
+      ]
+    },
+    {
+      "category": "charging",
+      "people_affected": "unknown",
+      "quantity": "unknown",
+      "stated_urgency": "unknown"
+    }
+  ],
+  "permissions": [
+    {
+      "purpose": "notice_acknowledgement",
+      "decision": "granted",
+      "notice_version": 1
+    },
+    {
+      "purpose": "refresh_prompts",
+      "decision": "granted",
+      "notice_version": 1
+    },
+    {
+      "purpose": "contact_list",
+      "decision": "declined",
+      "notice_version": 1
+    }
+  ],
+  "questionnaire": {
+    "key": "csl_report",
+    "version": 1
+  },
+  "answers": [
+    {
+      "step_id": "relationship",
+      "value": {
+        "kind": "choice",
+        "option_ids": [
+          "household"
+        ]
+      },
+      "answered_at": "2026-11-07T10:00:00Z"
+    },
+    {
+      "step_id": "people",
+      "value": {
+        "kind": "number",
+        "number": 4
+      },
+      "answered_at": "2026-11-07T10:00:00Z"
+    },
+    {
+      "step_id": "electricity_since",
+      "value": {
+        "kind": "unknown"
+      },
+      "answered_at": "2026-11-07T10:00:00Z"
+    }
+  ],
+  "operation_key": "wa:wamid.HBgM:confirm"
+}

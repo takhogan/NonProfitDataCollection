@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Body of ``POST /internal/data-jobs/{id}/fail``. ``message`` must already be redacted.",
+  "properties": {
+    "attempt_token": {
+      "pattern": "^[A-Za-z0-9_-]{32,128}$",
+      "title": "Attempt Token",
+      "type": "string"
+    },
+    "classification": {
+      "enum": [
+        "retryable",
+        "terminal"
+      ],
+      "title": "Classification",
+      "type": "string"
+    },
+    "message": {
+      "maxLength": 1000,
+      "title": "Message",
+      "type": "string"
+    },
+    "reason_code": {
+      "pattern": "^[a-z0-9_]{1,64}$",
+      "title": "Reason Code",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": "1",
+      "title": "Schema Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "schema_version",
+    "attempt_token",
+    "classification",
+    "reason_code"
+  ],
+  "title": "DataJobFailure",
+  "type": "object",
+  "x-contract-version": "v1"
+}

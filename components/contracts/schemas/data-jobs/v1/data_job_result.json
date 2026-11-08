@@ -1,0 +1,356 @@
+{
+  "$defs": {
+    "ArtifactReference": {
+      "additionalProperties": false,
+      "description": "An object in restricted storage uploaded under this job's authorization.\n\nThe checksum sits with its reference (``data-jobs.md`` lists ``artifact_checksums[]``\nas a parallel array; one object per artifact avoids misaligned arrays).",
+      "properties": {
+        "media_type": {
+          "maxLength": 128,
+          "pattern": "^[a-z]+/[A-Za-z0-9.+-]+$",
+          "title": "Media Type",
+          "type": "string"
+        },
+        "object_key": {
+          "pattern": "^[A-Za-z0-9/_.-]{1,512}$",
+          "title": "Object Key",
+          "type": "string"
+        },
+        "sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Sha256",
+          "type": "string"
+        },
+        "size_bytes": {
+          "maximum": 5000000000,
+          "minimum": 0,
+          "title": "Size Bytes",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "object_key",
+        "media_type",
+        "size_bytes",
+        "sha256"
+      ],
+      "title": "ArtifactReference",
+      "type": "object"
+    },
+    "SpatialResolution": {
+      "additionalProperties": false,
+      "properties": {
+        "unit": {
+          "const": "m",
+          "title": "Unit",
+          "type": "string"
+        },
+        "value": {
+          "exclusiveMinimum": 0,
+          "maximum": 1000000,
+          "title": "Value",
+          "type": "number"
+        }
+      },
+      "required": [
+        "value",
+        "unit"
+      ],
+      "title": "SpatialResolution",
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "data_availability": {
+            "const": "unavailable"
+          }
+        }
+      },
+      "then": {
+        "not": {
+          "anyOf": [
+            {
+              "required": [
+                "value"
+              ]
+            },
+            {
+              "required": [
+                "unit"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "data_availability": {
+            "const": "usable"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "value",
+          "unit"
+        ]
+      }
+    },
+    {
+      "dependentRequired": {
+        "unit": [
+          "value"
+        ],
+        "value": [
+          "unit"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "indicator_type": {
+            "const": "monitor_ciudad_service_status"
+          }
+        },
+        "required": [
+          "unit"
+        ]
+      },
+      "then": {
+        "properties": {
+          "unit": {
+            "const": "share"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "indicator_type": {
+            "const": "ntl_radiance_anomaly"
+          }
+        },
+        "required": [
+          "unit"
+        ]
+      },
+      "then": {
+        "properties": {
+          "unit": {
+            "const": "z_score"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "indicator_type": {
+            "const": "rainfall_anomaly"
+          }
+        },
+        "required": [
+          "unit"
+        ]
+      },
+      "then": {
+        "properties": {
+          "unit": {
+            "const": "mm"
+          }
+        }
+      }
+    }
+  ],
+  "description": "A worker's result. An unavailable result has no value: absence never becomes zero.",
+  "properties": {
+    "area_id": {
+      "format": "uuid",
+      "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+      "title": "Area Id",
+      "type": "string"
+    },
+    "artifact_references": {
+      "items": {
+        "$ref": "#/$defs/ArtifactReference"
+      },
+      "maxItems": 50,
+      "title": "Artifact References",
+      "type": "array"
+    },
+    "baseline_reference": {
+      "maxLength": 512,
+      "minLength": 1,
+      "title": "Baseline Reference",
+      "type": "string"
+    },
+    "data_availability": {
+      "enum": [
+        "usable",
+        "partial",
+        "unavailable"
+      ],
+      "title": "Data Availability",
+      "type": "string"
+    },
+    "geometry_version": {
+      "minimum": 1,
+      "title": "Geometry Version",
+      "type": "integer"
+    },
+    "indicator_type": {
+      "enum": [
+        "monitor_ciudad_service_status",
+        "ntl_radiance_anomaly",
+        "rainfall_anomaly"
+      ],
+      "title": "Indicator Type",
+      "type": "string"
+    },
+    "job_id": {
+      "format": "uuid",
+      "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+      "title": "Job Id",
+      "type": "string"
+    },
+    "license_reference": {
+      "maxLength": 512,
+      "minLength": 1,
+      "title": "License Reference",
+      "type": "string"
+    },
+    "limitations": {
+      "items": {
+        "maxLength": 500,
+        "minLength": 1,
+        "type": "string"
+      },
+      "maxItems": 20,
+      "title": "Limitations",
+      "type": "array"
+    },
+    "method_version": {
+      "pattern": "^[A-Za-z0-9._-]{1,64}$",
+      "title": "Method Version",
+      "type": "string"
+    },
+    "observed_from": {
+      "format": "date-time",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]{1,6})?(Z|\\+00:00)$",
+      "title": "Observed From",
+      "type": "string"
+    },
+    "observed_to": {
+      "format": "date-time",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]{1,6})?(Z|\\+00:00)$",
+      "title": "Observed To",
+      "type": "string"
+    },
+    "operation_key": {
+      "pattern": "^[A-Za-z0-9._:-]{8,128}$",
+      "title": "Operation Key",
+      "type": "string"
+    },
+    "processing_version": {
+      "pattern": "^[A-Za-z0-9._-]{1,64}$",
+      "title": "Processing Version",
+      "type": "string"
+    },
+    "quality_flags": {
+      "items": {
+        "pattern": "^[a-z0-9_]{1,64}$",
+        "type": "string"
+      },
+      "maxItems": 20,
+      "title": "Quality Flags",
+      "type": "array"
+    },
+    "retrieved_at": {
+      "format": "date-time",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]{1,6})?(Z|\\+00:00)$",
+      "title": "Retrieved At",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": "1",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "source_id": {
+      "pattern": "^[a-z0-9][a-z0-9_.-]{0,63}$",
+      "title": "Source Id",
+      "type": "string"
+    },
+    "source_reference": {
+      "maxLength": 512,
+      "minLength": 1,
+      "title": "Source Reference",
+      "type": "string"
+    },
+    "source_version": {
+      "pattern": "^[A-Za-z0-9._-]{1,64}$",
+      "title": "Source Version",
+      "type": "string"
+    },
+    "spatial_resolution": {
+      "$ref": "#/$defs/SpatialResolution"
+    },
+    "temporal_resolution": {
+      "enum": [
+        "PT1H",
+        "PT6H",
+        "P1D",
+        "P7D",
+        "P1M"
+      ],
+      "title": "Temporal Resolution",
+      "type": "string"
+    },
+    "unit": {
+      "enum": [
+        "share",
+        "z_score",
+        "mm"
+      ],
+      "title": "Unit",
+      "type": "string"
+    },
+    "value": {
+      "maximum": 1000000,
+      "minimum": -1000000,
+      "title": "Value",
+      "type": "number"
+    }
+  },
+  "required": [
+    "schema_version",
+    "job_id",
+    "operation_key",
+    "processing_version",
+    "source_id",
+    "source_reference",
+    "license_reference",
+    "observed_from",
+    "observed_to",
+    "retrieved_at",
+    "area_id",
+    "geometry_version",
+    "indicator_type",
+    "method_version",
+    "quality_flags",
+    "limitations",
+    "data_availability",
+    "artifact_references"
+  ],
+  "title": "DataJobResult",
+  "type": "object",
+  "x-contract-version": "v1"
+}

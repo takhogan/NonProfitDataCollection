@@ -1,0 +1,282 @@
+{
+  "$defs": {
+    "InteractiveReplyContent": {
+      "additionalProperties": false,
+      "description": "A button or list reply. ``reply_id`` is the ID we set when sending.",
+      "properties": {
+        "reply_id": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Reply Id",
+          "type": "string"
+        },
+        "reply_kind": {
+          "enum": [
+            "button",
+            "list"
+          ],
+          "title": "Reply Kind",
+          "type": "string"
+        },
+        "title": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Title",
+          "type": "string"
+        },
+        "type": {
+          "const": "interactive_reply",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "reply_kind",
+        "reply_id",
+        "title"
+      ],
+      "title": "InteractiveReplyContent",
+      "type": "object"
+    },
+    "LocationContent": {
+      "additionalProperties": false,
+      "description": "A shared location. The intake flow uses it only where the profile allows GPS.",
+      "properties": {
+        "address": {
+          "maxLength": 512,
+          "minLength": 1,
+          "title": "Address",
+          "type": "string"
+        },
+        "lat": {
+          "maximum": 90,
+          "minimum": -90,
+          "title": "Lat",
+          "type": "number"
+        },
+        "lon": {
+          "maximum": 180,
+          "minimum": -180,
+          "title": "Lon",
+          "type": "number"
+        },
+        "name": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "type": {
+          "const": "location",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "lat",
+        "lon"
+      ],
+      "title": "LocationContent",
+      "type": "object"
+    },
+    "MediaPlaceholderContent": {
+      "additionalProperties": false,
+      "description": "Media is not downloaded at P0 (WA-020). Provider media URLs are never stored.",
+      "properties": {
+        "media_type": {
+          "enum": [
+            "audio",
+            "image",
+            "video",
+            "document"
+          ],
+          "title": "Media Type",
+          "type": "string"
+        },
+        "mime_type": {
+          "maxLength": 128,
+          "pattern": "^[a-z]+/[A-Za-z0-9.+-]+(; ?[a-z]+=[A-Za-z0-9-]+)?$",
+          "title": "Mime Type",
+          "type": "string"
+        },
+        "provider_media_id": {
+          "maxLength": 256,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9._:=+/-]+$",
+          "title": "Provider Media Id",
+          "type": "string"
+        },
+        "size_bytes": {
+          "minimum": 0,
+          "title": "Size Bytes",
+          "type": "integer"
+        },
+        "type": {
+          "const": "media",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "media_type",
+        "mime_type",
+        "provider_media_id"
+      ],
+      "title": "MediaPlaceholderContent",
+      "type": "object"
+    },
+    "TextContent": {
+      "additionalProperties": false,
+      "properties": {
+        "body": {
+          "maxLength": 4096,
+          "minLength": 1,
+          "title": "Body",
+          "type": "string"
+        },
+        "type": {
+          "const": "text",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "body"
+      ],
+      "title": "TextContent",
+      "type": "object"
+    },
+    "UnsupportedContent": {
+      "additionalProperties": false,
+      "description": "Stickers, reactions, contacts, unknown types (WA-013).",
+      "properties": {
+        "provider_type": {
+          "pattern": "^[a-z0-9_]{1,64}$",
+          "title": "Provider Type",
+          "type": "string"
+        },
+        "type": {
+          "const": "unsupported",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "provider_type"
+      ],
+      "title": "UnsupportedContent",
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "channel_account_id": {
+      "maxLength": 256,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9._:=+/-]+$",
+      "title": "Channel Account Id",
+      "type": "string"
+    },
+    "content": {
+      "discriminator": {
+        "mapping": {
+          "interactive_reply": "#/$defs/InteractiveReplyContent",
+          "location": "#/$defs/LocationContent",
+          "media": "#/$defs/MediaPlaceholderContent",
+          "text": "#/$defs/TextContent",
+          "unsupported": "#/$defs/UnsupportedContent"
+        },
+        "propertyName": "type"
+      },
+      "oneOf": [
+        {
+          "$ref": "#/$defs/TextContent"
+        },
+        {
+          "$ref": "#/$defs/InteractiveReplyContent"
+        },
+        {
+          "$ref": "#/$defs/LocationContent"
+        },
+        {
+          "$ref": "#/$defs/MediaPlaceholderContent"
+        },
+        {
+          "$ref": "#/$defs/UnsupportedContent"
+        }
+      ],
+      "title": "Content"
+    },
+    "context_message_id": {
+      "description": "The message this one replies to.",
+      "maxLength": 256,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9._:=+/-]+$",
+      "title": "Context Message Id",
+      "type": "string"
+    },
+    "event_id": {
+      "format": "uuid",
+      "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+      "title": "Event Id",
+      "type": "string"
+    },
+    "provider": {
+      "enum": [
+        "meta_cloud",
+        "fake"
+      ],
+      "title": "Provider",
+      "type": "string"
+    },
+    "provider_message_id": {
+      "maxLength": 256,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9._:=+/-]+$",
+      "title": "Provider Message Id",
+      "type": "string"
+    },
+    "provider_timestamp": {
+      "format": "date-time",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]{1,6})?(Z|\\+00:00)$",
+      "title": "Provider Timestamp",
+      "type": "string"
+    },
+    "received_at": {
+      "format": "date-time",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]{1,6})?(Z|\\+00:00)$",
+      "title": "Received At",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": "1",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "sender": {
+      "pattern": "^\\+[1-9][0-9]{6,14}$",
+      "title": "Sender",
+      "type": "string"
+    }
+  },
+  "required": [
+    "schema_version",
+    "event_id",
+    "provider",
+    "channel_account_id",
+    "provider_message_id",
+    "sender",
+    "provider_timestamp",
+    "received_at",
+    "content"
+  ],
+  "title": "InboundMessage",
+  "type": "object",
+  "x-contract-version": "v1"
+}

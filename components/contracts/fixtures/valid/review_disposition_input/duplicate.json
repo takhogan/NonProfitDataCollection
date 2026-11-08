@@ -1,0 +1,6 @@
+{
+  "outcome": "duplicate",
+  "rationale": "Mismo reporte enviado dos veces",
+  "duplicate_of_report_id": "00000000-0000-4000-8000-000000000005",
+  "operation_key": "rev:900:1"
+}
