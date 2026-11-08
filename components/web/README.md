@@ -48,6 +48,7 @@ the next save fail (to exercise WEB-005). It is excluded from production builds.
 `default-src 'self'; connect-src 'self' <api-origin>; img-src 'self' data:;
 style-src 'self'; script-src 'self'; frame-ancestors 'none'; base-uri 'none'`, and
 `Referrer-Policy: no-referrer`. The app loads no third-party scripts or fonts.
+`firebase.json` sets these headers (see [HOSTING.md](HOSTING.md)).
 
 ## Requirement status
 
@@ -109,9 +110,16 @@ First deliverable: assisted intake → household case → two open needs.
 - Vitest + React Testing Library for important UI behavior; Playwright for the main
   assisted-intake, areas-of-need, and activity-logging journeys.
 
-Deploy the static build to a Render Static Site. Run Vite locally. Use a restricted
-API origin allowlist and an authenticated API session; configure production web/API
-origins together. Runtime versions and package pins will be set during implementation.
+**Hosting decision (Nov 2026): Firebase Hosting, not Render.** The site is
+Firebase Hosting in GCP project `csl-metron-webhook` with the neutral site ID
+`metron-reporter` (`firebase.json`, `.firebaserc`). Today it serves only the
+static home and privacy pages in `static-site/` that the Meta app links to. The
+React build moves to the same site later, with `/v1/**` rewritten to the Cloud Run
+service `whatsapp-webhook` (`us-east4`) so the API's `__Host-sid` cookie is
+same-site. That rewrite is planned, not enabled: Firebase forwards only a cookie
+named `__session` to Cloud Run, which must be settled first. See
+[HOSTING.md](HOSTING.md). Run Vite locally. Configure production web/API origins
+together (`WEB_ORIGIN` on the API).
 
 ## Internal layout and data flow
 

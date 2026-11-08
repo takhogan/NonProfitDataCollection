@@ -1,0 +1,12 @@
+{
+  "projects": {
+    "default": "csl-metron-webhook"
+  },
+  "targets": {
+    "csl-metron-webhook": {
+      "hosting": {
+        "site": ["metron-reporter"]
+      }
+    }
+  }
+}
