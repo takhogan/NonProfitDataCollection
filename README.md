@@ -9,16 +9,15 @@ Ciudadanía Sin Límites in Caracas.
 
 ## Current state
 
-This repository contains the product plan, the requirements, and a first runnable
-Python API at [`components/whatsapp/api`](components/whatsapp/api/README.md). It covers:
+This repository contains the product plan, the requirements, and these runnable components:
 
-- assisted intake
-- household and case retrieval
-- tenant isolation tests
-- idempotency
-- WhatsApp webhook persistence
-
-The API uses SQLite locally. There is no worker, web app, or live integration yet.
+- [`components/whatsapp/api`](components/whatsapp/api/README.md): the FastAPI backend
+  (staff API, WhatsApp webhook) and the background worker. PostgreSQL/PostGIS with RLS.
+  The webhook is live on Cloud Run with a real number.
+- [`components/api`](components/api/README-DASHBOARD.md): the dashboard API (`dash`),
+  which reads the same database through the backend's models.
+- [`components/web`](components/web/README.md): the React/TypeScript/Vite web app (mock
+  API by default) and the Firebase Hosting config for the public static pages.
 
 - [Product plan and logical schema](PLATFORM_PLAN.md)
 - [Component stacks, boundaries, and implementation roadmap](components/README.md)
@@ -27,6 +26,113 @@ The API uses SQLite locally. There is no worker, web app, or live integration ye
 The first release serves one NGO while enforcing organization ownership in the
 data model. Later releases add explicit referrals and controlled collaboration
 between organizations.
+
+## Running locally
+
+One command starts everything. It needs Docker running, Python 3.11 or newer, and
+Node 24.22 or newer (`nvm use` reads `.nvmrc`). It has no npm dependencies, so no
+`npm install` is needed at the root.
+
+```bash
+nvm use
+npm run start:dev
+```
+
+[`scripts/dev.mjs`](scripts/dev.mjs) does this, in order:
+
+1. Checks the prerequisites and that ports 8000, 8001 and 5173 are free.
+2. Runs `docker compose up -d db` in `components/whatsapp/api` (PostGIS on
+   `localhost:55432`) and waits until it is healthy.
+3. Copies `components/whatsapp/api/.env.postgres.example` to `.env` if there is no
+   `.env`. An existing `.env` is never overwritten.
+4. Creates `.venv` in `components/whatsapp/api` and `components/api` if missing, and
+   runs `pip install -e ".[dev]"` again whenever `pyproject.toml` changed. Runs
+   `npm ci` in `components/web` if `node_modules` is missing.
+5. Creates the database named in `DATABASE_URL` if it does not exist, then runs
+   `alembic upgrade head`.
+6. Seeds synthetic data: `python -m scripts.seed` (Caracas demo orgs) and the
+   dashboard's `python -m scripts.seed_miami` (`demo@metron.org` / `demo-pass`). Both
+   skip what already exists, so they are safe on every run.
+7. Starts four processes with coloured, prefixed output:
+
+| Prefix | Process | URL |
+|---|---|---|
+| `api` | backend, `uvicorn app.main:app --reload` | http://localhost:8000/health, `/docs` |
+| `worker` | `python -m scripts.worker` (fake WhatsApp adapter, sends nothing) | none |
+| `dashboard` | dashboard API, `uvicorn dash.main:app --reload --port 8001` | http://localhost:8001/docs |
+| `web` | `npm run dev` (Vite) | http://localhost:5173 |
+
+Ctrl-C stops all four, including the reloader children. If one process exits on its
+own, the others are stopped too. A second Ctrl-C kills them at once.
+
+| Option | Effect |
+|---|---|
+| `npm run start:dev -- --web=http` (or `DEV_WEB_MODE=http`) | Web app uses the backend: `VITE_API_MODE=http`, `VITE_API_BASE_URL=http://localhost:8000` (override by exporting it). The default is the in-memory mock client. |
+| `npm run start:dev -- --no-seed` (or `DEV_SKIP_SEED=1`) | Skip both seed scripts. |
+| `npm run setup:dev` | Do steps 1 to 6 and exit (no ports needed). |
+| `PYTHON=python3.12 npm run start:dev` | Interpreter used to create missing venvs. |
+
+**One database for everything.** The dashboard API runs against the same Postgres
+database as the backend (`DATABASE_URL` and `JWT_SECRET` are read from
+`components/whatsapp/api/.env`). This works locally because the connection is the
+`postgres` superuser, which bypasses RLS: the dashboard filters by
+`organization_id` in code and does not switch roles. The SQLite path in
+`README-DASHBOARD.md` is still valid for running the dashboard on its own.
+
+**Worktrees.** Every checkout shares one Postgres container and volume: the compose
+project is named after the folder, `api`. Branches can change migrations under the
+same revision id, so when `.env` is first created inside `.claude/worktrees/<name>`,
+the database is `csl_dev_<name>`, not `csl_dev`. To use another database, edit
+`DATABASE_URL` in `.env`. It is created on the next start.
+
+**Resetting.** Drop the database and start again, for example
+`docker exec api-db-1 psql -U postgres -c 'DROP DATABASE csl_dev_<name>'`. To wipe the
+whole volume, use `docker compose down -v` in `components/whatsapp/api`. That wipes every
+checkout's database.
+
+### Tests
+
+```bash
+# backend (needs the Docker db; without TEST_POSTGRES_URL the Postgres tests skip)
+cd components/whatsapp/api
+TEST_POSTGRES_URL=postgresql+psycopg://postgres:postgres-local-only@localhost:55432/postgres .venv/bin/python -m pytest
+
+# dashboard API: reads the seeded demo org; point it at the dev database
+cd components/api
+DATABASE_URL="$(grep ^DATABASE_URL= ../whatsapp/api/.env | cut -d= -f2-)" .venv/bin/python -m pytest
+
+# web
+cd components/web && npm test
+```
+
+## Deploying
+
+Deploys go to the **live** GCP project `csl-metron-webhook`: Cloud Run, Cloud SQL,
+and a WhatsApp number that real people message. Run them deliberately, from a clean
+tree (images are tagged with the commit hash).
+
+```bash
+npm run deploy -- --dry-run     # preflight + plan + the exact commands; runs nothing
+npm run deploy                  # api, then dashboard, then web
+npm run deploy:api              # one target (deploy:dashboard, deploy:web)
+```
+
+[`scripts/deploy.sh`](scripts/deploy.sh) checks first: a clean `components/`, an
+active gcloud account that can read the project, the `firebase` CLI, and that
+`components/web/static-site/` holds only `.html`/`.css`. It prints the image tag that
+is live on each Cloud Run service and how many files changed since then. Then it asks
+you to type `deploy` (`--yes` skips this; without a terminal it refuses unless `--yes`).
+
+| Target | What runs | Notes |
+|---|---|---|
+| `api` | `components/whatsapp/api/deploy/gcloud-deploy.sh deploy` | Cloud Build image, then the `aid-migrate` Cloud Run job runs `alembic upgrade head` and waits, then the `whatsapp-webhook` service. See [DEPLOY.md](components/whatsapp/api/DEPLOY.md). The worker service (`aid-worker`) is **not** deployed; it is not approved yet. |
+| `dashboard` | `gcloud builds submit --config components/cloudbuild.dashboard.yaml`, then `components/api/deploy/gcloud-deploy.sh grant service url` | Same image tag. That script's own `build` step does not work: `gcloud builds submit` has no `-f` flag. Runs after `api` because it reads the schema the api migrates. |
+| `web` | `firebase deploy --only hosting` in `components/web` | Only the static pages in `static-site/`. The React app is not hosted yet. See [HOSTING.md](components/web/HOSTING.md). |
+
+Targets always run in the order api, dashboard, web. Nothing is skipped
+automatically, because "unchanged since the last deploy" cannot be decided reliably:
+live tags can be commits from other branches, and the dashboard image bundles the
+backend. Use the preflight's change count to decide which targets to name.
 
 ## Repository structure
 
@@ -66,9 +172,9 @@ The stack was decided on 7 November 2026, following the first implementation.
 - **Web:** React, TypeScript, and Vite. TypeScript API types are generated from the
   backend's OpenAPI document.
 
-Proposed hosting: Render web service (API), Render background worker (same image,
-worker command), and managed Render Postgres/PostGIS, colocated in Virginia, subject to
-NGO hosting requirements. No hosting resources have been provisioned.
+Hosting: Google Cloud Run and Cloud SQL (PostgreSQL) in `us-east4` (Virginia), GCP
+project `csl-metron-webhook`, and Firebase Hosting for the static pages. See
+[Deploying](#deploying). (The earlier plan was Render.)
 
 Start with synthetic data and assisted intake. Add real WhatsApp traffic after
 the assisted-reporting, aggregation, and provider workflow works. The architecture supports a fake

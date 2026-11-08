@@ -15,6 +15,10 @@ it reuses whatsapp/api's SQLAlchemy models via a runtime bridge
 
 ## Run locally
 
+`npm run start:dev` at the repo root runs this API on :8001 against the same Docker
+Postgres as whatsapp/api and seeds `seed_miami`; see
+[Running locally](../../README.md#running-locally). The steps below run it alone on SQLite.
+
 ```bash
 cd components/api
 python3 -m venv .venv && .venv/bin/python -m pip install -e ".[dev]"
@@ -42,6 +46,11 @@ export DATABASE_URL="sqlite:///../whatsapp/api/local-data/aid.sqlite3"
 ```
 
 ## Deploy (Cloud Run)
+
+Prefer `npm run deploy:dashboard` at the repo root: it builds with
+[`../cloudbuild.dashboard.yaml`](../cloudbuild.dashboard.yaml) and then runs this script's
+`grant service url` steps. The script's own `build` step passes `-f` to
+`gcloud builds submit`, which does not accept it. See [Deploying](../../README.md#deploying).
 
 Same project / DB / secrets as whatsapp/api. The image bundles both trees, so it
 builds with the context at `components/`:

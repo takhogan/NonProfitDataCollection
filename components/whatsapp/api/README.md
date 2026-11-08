@@ -36,6 +36,10 @@ fast if any secret is missing or insecure, and SQLite is rejected.
 
 ### Quick start
 
+To run the whole stack (db, this API, the worker, the dashboard API and the web app) with
+one command, use `npm run start:dev` at the repo root; see
+[Running locally](../../../README.md#running-locally). The steps below run this API alone.
+
 ```bash
 cd components/whatsapp/api
 python3 -m venv .venv
@@ -177,6 +181,9 @@ cp .env.postgres.example .env           # or export DATABASE_URL / TEST_POSTGRES
   but without RLS, triggers, or spatial functions.
 
 ### Deployed webhook (Google Cloud)
+
+`npm run deploy:api` at the repo root wraps `deploy/gcloud-deploy.sh deploy` with a
+preflight and a confirmation; see [Deploying](../../../README.md#deploying).
 
 The webhook runs in its own GCP project, deployed by
 [`deploy/gcloud-deploy.sh`](deploy/gcloud-deploy.sh). The script runs in re-runnable
