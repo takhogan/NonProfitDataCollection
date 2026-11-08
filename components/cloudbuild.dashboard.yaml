@@ -1,0 +1,21 @@
+# Build the dashboard API image. Context is components/ (this dir) so the image
+# can bundle BOTH api/ (the `dash` package) and whatsapp/api/ (the shared `app`
+# models the bridge imports). The Dockerfile is at api/Dockerfile.
+#
+#   gcloud builds submit --config components/cloudbuild.dashboard.yaml \
+#     --substitutions=_TAG=<git-sha> components/
+steps:
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - -f
+      - api/Dockerfile
+      - -t
+      - us-east4-docker.pkg.dev/$PROJECT_ID/aid/dashboard-api:$_TAG
+      - .
+images:
+  - us-east4-docker.pkg.dev/$PROJECT_ID/aid/dashboard-api:$_TAG
+substitutions:
+  _TAG: latest
+options:
+  logging: CLOUD_LOGGING_ONLY
