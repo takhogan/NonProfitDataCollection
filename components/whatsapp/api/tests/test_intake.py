@@ -67,7 +67,7 @@ def test_duplicate_reference_code_conflicts(client, seeded):
     client.post(_org_url(seeded), json=INTAKE_BODY, headers=headers)
     resp = client.post(_org_url(seeded), json=INTAKE_BODY, headers=headers)
     assert resp.status_code == 409
-    assert resp.json()["error"]["code"] == "conflict"
+    assert resp.json()["code"] == "conflict"
 
 
 def test_need_unit_mismatch_rejected(client, seeded):
@@ -76,4 +76,4 @@ def test_need_unit_mismatch_rejected(client, seeded):
            "needs": [{"category": "water_delivery", "unit": "device_sessions"}]}
     resp = client.post(_org_url(seeded), json=bad, headers=headers)
     assert resp.status_code == 422
-    assert resp.json()["error"]["code"] == "validation_error"
+    assert resp.json()["code"] == "validation_failed"

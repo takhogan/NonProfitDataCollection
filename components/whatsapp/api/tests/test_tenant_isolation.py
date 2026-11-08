@@ -25,7 +25,7 @@ def test_user_cannot_act_in_foreign_org_path(client, seeded):
     headers_a = auth_headers(client, seeded["login_a"])
     resp = client.get(f"/orgs/{seeded['org_b']}/cases", headers=headers_a)
     assert resp.status_code == 404
-    assert resp.json()["error"]["code"] == "not_found"
+    assert resp.json()["code"] == "not_found"
 
 
 def test_user_cannot_create_in_foreign_org(client, seeded):

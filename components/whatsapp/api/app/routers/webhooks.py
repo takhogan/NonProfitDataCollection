@@ -22,11 +22,13 @@ from fastapi.responses import PlainTextResponse
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.auth.ratelimit import limit_webhook
 from app.config import get_settings
 from app.db import get_db
 from app.models.system import InboundEvent
 
-router = APIRouter(prefix="/webhooks", tags=["webhooks"])
+# Per-IP rate limit (API-111) runs before any signature work.
+router = APIRouter(prefix="/webhooks", tags=["webhooks"], dependencies=[Depends(limit_webhook)])
 
 
 @router.get("/whatsapp")
