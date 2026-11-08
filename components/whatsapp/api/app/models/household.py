@@ -1,5 +1,9 @@
 """People, households, and household membership.
 
+LEGACY for the pilot: only the `standard` privacy profile may use household
+records (DB-015), and ``report.household_id`` is rejected on protective
+reports by the profile trigger.
+
 person(id, organization_id, preferred_name?, preferred_language?)
 household(id, organization_id, reference_code, estimated_member_count?,
           current_location_id?)
@@ -36,6 +40,8 @@ class Household(OrgOwned, Base):
     __table_args__ = (
         # reference_code is human-facing; unique within an organization only.
         UniqueConstraint("organization_id", "reference_code", name="uq_household_ref"),
+        # Target for report.household_id (standard profile, DB-015).
+        UniqueConstraint("organization_id", "id", name="uq_household_org_id"),
     )
 
     reference_code: Mapped[str] = mapped_column(String(64), nullable=False)

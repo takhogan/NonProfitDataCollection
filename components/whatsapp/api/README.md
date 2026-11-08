@@ -108,6 +108,37 @@ in one transaction), household/case retrieval, **cross-organization isolation**
 WhatsApp webhook (verification handshake, signature check, event persistence,
 provider-message dedupe).
 
+### Database (pilot schema, PostgreSQL/PostGIS)
+
+*Added by the database component; see `components/database/REQUIREMENTS.md`.*
+Migration `2a7c4e91d3b0` adds the report-centric pilot schema (privacy profiles,
+areas and meeting points, reports/observations/needs, providers, indicator and
+coverage cells, public snapshots, review, jobs/outbox) with forced row-level
+security. The legacy `observation`/`need` tables are renamed `legacy_*`; the
+other household/case tables are unchanged.
+
+```bash
+docker compose up -d db                 # PostgreSQL 15 + PostGIS on localhost:55432
+cp .env.postgres.example .env           # or export DATABASE_URL / TEST_POSTGRES_URL from it
+.venv/bin/alembic upgrade head
+.venv/bin/python -m scripts.seed        # synthetic: 2 orgs, all roles, 3 providers each, ~300 reports
+.venv/bin/python -m pytest tests/database   # RLS, triggers, SKIP LOCKED, spatial; skipped without Postgres
+```
+
+- **Tenant context:** wrap tenant work in `app.db.tenant_transaction(org_id,
+  membership_id, role, provider_org_id=...)`. It sets `app.*` settings with
+  `set_config(..., true)` and `SET LOCAL ROLE csl_*`; no tenant means no rows.
+- **Roles:** the migration login owns the tables (needs `CREATEROLE` and
+  PostGIS). Runtime logins must not own tables or have `BYPASSRLS`; grant
+  `csl_runtime, csl_provider, csl_analyst, csl_public` to the API login and
+  `csl_worker` to the worker login.
+- **Seed logins:** the seed recreates the demo users above under
+  "Agua Azul (demo, standard)" and "Luz Viva (demo, protective)"; `luis` is now an
+  `intake_volunteer`, and each org adds `admin@`, `revis*@`, `analista@` and
+  provider users (`<provider>@<org>-provider.example`).
+- SQLite still works for quick demos (`alembic upgrade head` and the seed run),
+  but without RLS, triggers, or spatial functions.
+
 ### Deployed webhook (Google Cloud)
 
 The webhook runs in its own GCP project, deployed by
