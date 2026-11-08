@@ -4,6 +4,10 @@ React application with three surfaces: the provider portal (primary), the operat
 
 ## Running locally
 
+`npm run start:dev` at the repo root starts this app together with the backend, the
+worker and the dashboard API (`-- --web=http` for the real API); see
+[Running locally](../../README.md#running-locally). To run only the web app:
+
 Needs Node 24 (`.nvmrc`; `nvm use`). Dependencies are pinned exactly with a
 committed `package-lock.json`.
 

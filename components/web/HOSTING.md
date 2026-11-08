@@ -18,6 +18,9 @@ cd components/web
 firebase deploy --only hosting --project csl-metron-webhook
 ```
 
+`npm run deploy:web` at the repo root runs the same command after checking that
+`static-site/` holds only `.html`/`.css` files.
+
 Run the deploy from `components/web` only after checking `static-site/` holds just
 the pages: everything in it is published. (`*.log` and dotfiles are ignored, because a
 stray `firebase-debug.log` was published once and had to be removed.)

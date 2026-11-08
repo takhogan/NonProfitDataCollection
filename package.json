@@ -1,0 +1,16 @@
+{
+  "name": "nonprofit-data-collection",
+  "private": true,
+  "description": "Root dev/deploy commands for the monorepo. No dependencies. See README 'Running locally' and 'Deploying'.",
+  "engines": {
+    "node": ">=24.22.0"
+  },
+  "scripts": {
+    "start:dev": "node scripts/dev.mjs",
+    "setup:dev": "node scripts/dev.mjs --setup-only",
+    "deploy": "bash scripts/deploy.sh all",
+    "deploy:api": "bash scripts/deploy.sh api",
+    "deploy:dashboard": "bash scripts/deploy.sh dashboard",
+    "deploy:web": "bash scripts/deploy.sh web"
+  }
+}
