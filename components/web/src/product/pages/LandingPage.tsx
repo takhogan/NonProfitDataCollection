@@ -1,8 +1,10 @@
 import { Link } from 'react-router';
-import { Zap, Utensils, HeartHandshake } from 'lucide-react';
+import { Zap, Utensils, HeartHandshake, MessageSquareText, MapPinned, UserRound, MapPin, Phone, SlidersHorizontal } from 'lucide-react';
 import { useI18n } from '../../locales/i18n';
-import { useT } from '../i18n';
-import { Tag } from '../../ui/kit';
+import { useT, type ProductKey } from '../i18n';
+import { Tag, Pill, Stat } from '../../ui/kit';
+import { AREAS, FEED_SEED } from '../../api/product/mockData';
+import { UrgentPill } from '../components/bits';
 import s from './Landing.module.css';
 
 export default function LandingPage() {
@@ -18,6 +20,26 @@ export default function LandingPage() {
     { title: t('landing.step.configure'), body: t('landing.step.configureBody') },
     { title: t('landing.step.collect'), body: t('landing.step.collectBody') },
     { title: t('landing.step.see'), body: t('landing.step.seeBody') },
+  ];
+  const audiences = [
+    {
+      icon: MessageSquareText,
+      title: t('landing.who.collect'),
+      lead: t('landing.who.collectLead'),
+      points: [t('landing.who.collect1'), t('landing.who.collect2'), t('landing.who.collect3')],
+    },
+    {
+      icon: MapPinned,
+      title: t('landing.who.act'),
+      lead: t('landing.who.actLead'),
+      points: [t('landing.who.act1'), t('landing.who.act2'), t('landing.who.act3')],
+    },
+  ];
+  const privacy = [
+    { icon: UserRound, title: t('landing.trust.anon'), body: t('landing.trust.anonBody') },
+    { icon: MapPin, title: t('landing.trust.address'), body: t('landing.trust.addressBody') },
+    { icon: Phone, title: t('landing.trust.phone'), body: t('landing.trust.phoneBody') },
+    { icon: SlidersHorizontal, title: t('landing.trust.profile'), body: t('landing.trust.profileBody') },
   ];
 
   return (
@@ -86,11 +108,51 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* Who it's for */}
+      <section className={s.section} style={{ paddingTop: 0 }}>
+        <h2 className={s.sectionTitle}>{t('landing.who.title')}</h2>
+        <div className={s.cards2}>
+          {audiences.map((a) => {
+            const I = a.icon;
+            return (
+              <div key={a.title} className={s.audience}>
+                <I size={22} strokeWidth={1.5} className={s.useIcon} aria-hidden />
+                <h3>{a.title}</h3>
+                <p className={s.audienceLead}>{a.lead}</p>
+                <ul className={s.points}>
+                  {a.points.map((pt) => (
+                    <li key={pt}>{pt}</li>
+                  ))}
+                </ul>
+              </div>
+            );
+          })}
+        </div>
+        <p className={s.sharedNote}>{t('landing.who.shared')}</p>
+      </section>
+
+      {/* Dashboard preview (synthetic data) */}
+      <section className={s.section} style={{ paddingTop: 0 }}>
+        <DashboardPreview />
+      </section>
+
       {/* Trust / safety */}
       <div className={s.trust}>
         <div className={s.trustInner}>
           <h2>{t('landing.trust.title')}</h2>
           <p>{t('landing.trust.body')}</p>
+          <div className={s.trustGrid}>
+            {privacy.map((p) => {
+              const I = p.icon;
+              return (
+                <div key={p.title} className={s.trustPoint}>
+                  <I size={20} strokeWidth={1.5} className={s.useIcon} aria-hidden />
+                  <h3>{p.title}</h3>
+                  <p>{p.body}</p>
+                </div>
+              );
+            })}
+          </div>
         </div>
       </div>
 
@@ -126,6 +188,97 @@ function ChatVisual({ turnsLabel }: { turnsLabel: string }) {
         <Tag>{t('landing.chat.tag3')}</Tag>
         <Tag>{t('landing.chat.tag4')}</Tag>
       </div>
+    </div>
+  );
+}
+
+const NEED_KEYS: Partial<Record<string, ProductKey>> = {
+  no_power: 'landing.demo.need.no_power',
+  no_water: 'landing.demo.need.no_water',
+  power_restored: 'landing.demo.need.power_restored',
+};
+
+/** Static, non-interactive dashboard preview built from the mock client's synthetic data. */
+function DashboardPreview() {
+  const t = useT();
+  const totals = AREAS.reduce(
+    (acc, a) => ({ reports: acc.reports + a.reports, urgent: acc.urgent + a.urgent }),
+    { reports: 0, urgent: 0 },
+  );
+  const max = Math.max(...AREAS.map((a) => a.reports));
+  const recent = [...FEED_SEED].reverse();
+
+  return (
+    <div className={s.demo} aria-label={t('landing.demo.eyebrow')}>
+      <div className={s.demoHead}>
+        <div>
+          <p className={s.demoEyebrow}>{t('landing.demo.eyebrow')}</p>
+          <h2 className={s.demoTitle}>{t('landing.demo.title')}</h2>
+          <p className={s.demoOrg}>{t('landing.demo.org')}</p>
+        </div>
+        <Pill tone="warn">{t('landing.demo.sample')}</Pill>
+      </div>
+
+      <div className={s.demoStats}>
+        <Stat value={totals.reports} label={t('landing.demo.reports')} />
+        <Stat value={AREAS.length} label={t('landing.demo.areas')} />
+        <Stat value={totals.urgent} label={t('landing.demo.urgent')} tone="danger" />
+      </div>
+
+      <div className={s.demoBody}>
+        <div>
+          <h3 className={s.demoH3}>{t('landing.demo.byArea')}</h3>
+          <div className={s.legend} aria-hidden>
+            <span><i className={s.swPower} /> {t('landing.demo.noPower')}</span>
+            <span><i className={s.swWater} /> {t('landing.demo.noWater')}</span>
+          </div>
+          {AREAS.map((a) => (
+            <div key={a.area} className={s.areaRow}>
+              <div className={s.areaTop}>
+                <span>{a.area}</span>
+                <span className={`${s.areaCount} tnum`}>{a.reports}</span>
+              </div>
+              <div className={s.areaTrack} style={{ width: `${(a.reports / max) * 100}%` }} aria-hidden>
+                <span className={s.swPower} style={{ width: `${(a.without_power / a.reports) * 100}%` }} />
+                <span className={s.swWater} style={{ width: `${(a.without_water / a.reports) * 100}%` }} />
+              </div>
+              <div className={`${s.areaMeta} tnum`}>
+                {a.without_power} {t('landing.demo.noPower')} · {a.without_water} {t('landing.demo.noWater')}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div>
+          <h3 className={s.demoH3}>{t('landing.demo.recent')}</h3>
+          <table className={s.demoTable}>
+            <thead>
+              <tr>
+                <th>{t('landing.demo.colArea')}</th>
+                <th>{t('landing.demo.colNeed')}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {recent.map((f) => {
+                const need = (f.tags ?? []).map((tag) => NEED_KEYS[tag]).find(Boolean);
+                return (
+                  <tr key={f.id}>
+                    <td>
+                      <span className={s.cellArea}>{f.area}</span>
+                      <span className={s.cellPreview}>{f.preview}</span>
+                    </td>
+                    <td>
+                      <span className={s.cellNeed}>{t(need ?? 'landing.demo.need.other')}</span>
+                      {(f.tags ?? []).includes('urgent') && <UrgentPill />}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <p className={s.demoFoot}>{t('landing.demo.footnote')}</p>
     </div>
   );
 }
