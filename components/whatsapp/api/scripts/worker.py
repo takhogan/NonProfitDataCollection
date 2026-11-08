@@ -4,11 +4,16 @@ Deployed as a second Cloud Run service from the SAME image as the API, with a
 different command (python -m scripts.worker). It shares the same database and
 domain code; it does not open an HTTP port.
 
-For this deliverable the worker claims unprocessed events and marks them
-processed. Conversation intake, normalization, and outbound sends (via the
-transactional outbox) are later deliverables — intentionally no LLM calls or
-network sends happen here yet. The loop is idempotent: an event already marked
-processed is skipped, so a worker restart does not double-handle anything.
+Each cycle does two things:
+  1. process inbound_event rows: for a text message, queue a canned Spanish
+     greeting into the outbox in the SAME transaction as marking the event
+     processed; for a status event, update the matching outbox row.
+  2. send queued outbox rows via the WhatsApp adapter, storing the provider
+     message id and retrying transient failures.
+
+The loop is idempotent: an event already marked processed is skipped, and a
+per-event dedupe_key prevents a replayed event from queueing a second reply, so
+a worker restart does not double-handle anything or double-send.
 """
 from __future__ import annotations
 
@@ -21,8 +26,9 @@ from sqlalchemy.orm import Session
 
 from app.config import get_settings
 from app.db import SessionLocal
-from app.models.base import utcnow
 from app.models.system import InboundEvent
+from app.whatsapp.adapter import get_adapter
+from app.whatsapp.messaging import process_inbound_event, send_outbox_batch
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger("worker")
@@ -37,7 +43,7 @@ def _stop(signum, _frame):
 
 
 def process_batch(db: Session, batch_size: int) -> int:
-    """Claim and process one batch of unprocessed events. Returns count handled."""
+    """Claim and process one batch of unprocessed inbound events. Returns count."""
     events = list(
         db.scalars(
             select(InboundEvent)
@@ -48,13 +54,12 @@ def process_batch(db: Session, batch_size: int) -> int:
         )
     )
     for event in events:
-        # Placeholder processing: real intake/normalization lands in a later
-        # deliverable. We only advance the durable state here.
         log.info(
             "processing inbound_event id=%s type=%s provider_message_id=%s signature_valid=%s",
             event.id, event.event_type, event.provider_message_id, event.signature_valid,
         )
-        event.processed_at = utcnow()
+        # Queue any reply AND mark processed in the same transaction (outbox).
+        process_inbound_event(db, event, org_name=get_settings().pilot_org_name)
     if events:
         db.commit()
     return len(events)
@@ -74,18 +79,21 @@ def run() -> None:
         settings.app_env, interval, batch_size,
     )
 
+    adapter = get_adapter()
+
     while _running:
         db = SessionLocal()
         try:
             handled = process_batch(db, batch_size)
+            sent = send_outbox_batch(db, adapter, batch_size)
         except Exception:  # keep the worker alive on transient errors
             log.exception("error while processing batch")
             db.rollback()
-            handled = 0
+            handled, sent = 0, 0
         finally:
             db.close()
 
-        if handled == 0:
+        if handled == 0 and sent == 0:
             # Idle: sleep in short slices so SIGTERM is handled promptly.
             slept = 0.0
             while _running and slept < interval:
