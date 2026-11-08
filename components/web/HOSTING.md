@@ -18,6 +18,18 @@ cd components/web
 firebase deploy --only hosting --project csl-metron-webhook
 ```
 
+Run the deploy from `components/web` only after checking `static-site/` holds just
+the pages: everything in it is published. (`*.log` and dotfiles are ignored, because a
+stray `firebase-debug.log` was published once and had to be removed.)
+
+If the CLI's login is stale (`firebase login --reauth` from a shell where
+`firebase` is on PATH), the first deploy on 2026-11-07 used the Hosting REST API
+directly with `gcloud auth print-access-token` (create version with the same
+headers/redirects, populateFiles, upload, finalize, release). Firebase was added
+to the project with `projects/csl-metron-webhook:addFirebase`, which also created
+the unused default site `csl-metron-webhook.web.app` (it serves nothing; a default
+site cannot be deleted).
+
 Meta app settings: Privacy Policy URL `https://metron-reporter.web.app/privacidad`,
 App domain `metron-reporter.web.app`. Data deletion instructions are at
 `/privacidad#borrar`. `/privacy` redirects to `/privacidad`.
@@ -28,8 +40,10 @@ Every response gets a strict CSP (`default-src 'self'`, no inline script or
 style, `frame-ancestors 'none'`, `base-uri 'none'`), `Referrer-Policy:
 no-referrer`, `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, HSTS,
 `Cross-Origin-Opener-Policy: same-origin`, and a `Permissions-Policy` that turns
-off camera, microphone, geolocation and payment. HTML is `no-cache`, so text
-edits to the privacy page show up at once.
+off camera, microphone, geolocation and payment. Everything is `Cache-Control: no-cache`
+(the site is three small files), so text edits to the privacy page show up at once.
+When the Vite build moves in, give hashed `/assets/**` a long `max-age` and keep HTML `no-cache`;
+note that Hosting header globs match the request path, so with `cleanUrls` an `*.html` glob does not match `/privacidad`.
 
 ## Planned: React app and same-site `/v1`
 
