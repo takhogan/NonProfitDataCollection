@@ -1,0 +1,196 @@
+{
+  "$defs": {
+    "AreaGeometryReference": {
+      "additionalProperties": false,
+      "description": "Resolved through scoped API access; the job never embeds geometry.",
+      "properties": {
+        "crs": {
+          "const": "EPSG:4326",
+          "title": "Crs",
+          "type": "string"
+        },
+        "geometry_id": {
+          "format": "uuid",
+          "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+          "title": "Geometry Id",
+          "type": "string"
+        },
+        "geometry_version": {
+          "minimum": 1,
+          "title": "Geometry Version",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "geometry_id",
+        "geometry_version",
+        "crs"
+      ],
+      "title": "AreaGeometryReference",
+      "type": "object"
+    },
+    "TimeWindow": {
+      "additionalProperties": false,
+      "properties": {
+        "end": {
+          "format": "date-time",
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]{1,6})?(Z|\\+00:00)$",
+          "title": "End",
+          "type": "string"
+        },
+        "start": {
+          "format": "date-time",
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]{1,6})?(Z|\\+00:00)$",
+          "title": "Start",
+          "type": "string"
+        }
+      },
+      "required": [
+        "start",
+        "end"
+      ],
+      "title": "TimeWindow",
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Returned by ``POST /internal/data-jobs/claim``. Scope comes from the persisted job,\nnever from these fields alone.",
+  "properties": {
+    "area_geometry_reference": {
+      "$ref": "#/$defs/AreaGeometryReference"
+    },
+    "area_id": {
+      "format": "uuid",
+      "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+      "title": "Area Id",
+      "type": "string"
+    },
+    "attempt_token": {
+      "pattern": "^[A-Za-z0-9_-]{32,128}$",
+      "title": "Attempt Token",
+      "type": "string"
+    },
+    "baseline_window": {
+      "$ref": "#/$defs/TimeWindow"
+    },
+    "job_id": {
+      "format": "uuid",
+      "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+      "title": "Job Id",
+      "type": "string"
+    },
+    "job_type": {
+      "enum": [
+        "monitor_ciudad_service_status",
+        "ntl_radiance_anomaly",
+        "rainfall_anomaly"
+      ],
+      "title": "Job Type",
+      "type": "string"
+    },
+    "lease_expires_at": {
+      "format": "date-time",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]{1,6})?(Z|\\+00:00)$",
+      "title": "Lease Expires At",
+      "type": "string"
+    },
+    "observation_window_end": {
+      "format": "date-time",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]{1,6})?(Z|\\+00:00)$",
+      "title": "Observation Window End",
+      "type": "string"
+    },
+    "observation_window_start": {
+      "format": "date-time",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]{1,6})?(Z|\\+00:00)$",
+      "title": "Observation Window Start",
+      "type": "string"
+    },
+    "operation_key": {
+      "pattern": "^[A-Za-z0-9._:-]{8,128}$",
+      "title": "Operation Key",
+      "type": "string"
+    },
+    "organization_id": {
+      "format": "uuid",
+      "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+      "title": "Organization Id",
+      "type": "string"
+    },
+    "parameters": {
+      "additionalProperties": false,
+      "maxProperties": 20,
+      "patternProperties": {
+        "^[a-z][a-z0-9_]{0,63}$": {
+          "anyOf": [
+            {
+              "maxLength": 256,
+              "type": "string"
+            },
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "boolean"
+            }
+          ]
+        }
+      },
+      "title": "Parameters",
+      "type": "object"
+    },
+    "processing_version": {
+      "pattern": "^[A-Za-z0-9._-]{1,64}$",
+      "title": "Processing Version",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": "1",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "service_type": {
+      "enum": [
+        "electricity",
+        "piped_water"
+      ],
+      "title": "Service Type",
+      "type": "string"
+    },
+    "source_id": {
+      "description": "An approved source ID, never a URL.",
+      "pattern": "^[a-z0-9][a-z0-9_.-]{0,63}$",
+      "title": "Source Id",
+      "type": "string"
+    },
+    "source_version": {
+      "pattern": "^[A-Za-z0-9._-]{1,64}$",
+      "title": "Source Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "schema_version",
+    "job_id",
+    "organization_id",
+    "job_type",
+    "operation_key",
+    "source_id",
+    "area_id",
+    "area_geometry_reference",
+    "service_type",
+    "observation_window_start",
+    "observation_window_end",
+    "parameters",
+    "processing_version",
+    "attempt_token",
+    "lease_expires_at"
+  ],
+  "title": "DataJobRequest",
+  "type": "object",
+  "x-contract-version": "v1"
+}

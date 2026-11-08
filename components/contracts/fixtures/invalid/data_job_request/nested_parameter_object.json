@@ -1,0 +1,25 @@
+{
+  "schema_version": "1",
+  "job_id": "00000000-0000-4000-8000-000000000300",
+  "organization_id": "00000000-0000-4000-8000-000000000001",
+  "job_type": "monitor_ciudad_service_status",
+  "operation_key": "dj:mc:2026-11-07:sector-1",
+  "source_id": "monitor_ciudad_mock",
+  "area_id": "00000000-0000-4000-8000-000000000002",
+  "area_geometry_reference": {
+    "geometry_id": "00000000-0000-4000-8000-000000000301",
+    "geometry_version": 2,
+    "crs": "EPSG:4326"
+  },
+  "service_type": "electricity",
+  "observation_window_start": "2026-11-06T10:00:00Z",
+  "observation_window_end": "2026-11-07T10:00:00Z",
+  "parameters": {
+    "bbox": {
+      "x": 1
+    }
+  },
+  "processing_version": "mc-ingest-0.1.0",
+  "attempt_token": "atk_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+  "lease_expires_at": "2026-11-07T10:05:00Z"
+}

@@ -1,0 +1,17 @@
+{
+  "code": "validation_failed",
+  "message_key": "errors.validation_failed",
+  "details": [
+    {
+      "loc": [
+        "needs",
+        0,
+        "quantity",
+        "unit"
+      ],
+      "issue": "literal_error",
+      "message_key": "errors.validation.literal_error"
+    }
+  ],
+  "request_id": "req_01HZX4"
+}

@@ -1,0 +1,15 @@
+{
+  "area": {
+    "area_id": "00000000-0000-4000-8000-000000000003",
+    "level": "parish",
+    "name": "Sucre"
+  },
+  "subject": "water_drinking",
+  "period_start": "2026-11-05T04:00:00Z",
+  "period_end": "2026-11-06T04:00:00Z",
+  "need_count_band": 31,
+  "status_mix": null,
+  "coverage": "reported",
+  "freshness": "2026-11-06T03:00:00Z",
+  "published_at": "2026-11-07T10:00:00Z"
+}

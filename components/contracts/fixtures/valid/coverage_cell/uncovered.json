@@ -1,0 +1,12 @@
+{
+  "area": {
+    "area_id": "00000000-0000-4000-8000-000000000002",
+    "level": "sector"
+  },
+  "category": "water_drinking",
+  "coverage": "uncovered",
+  "active_need_threshold": 3,
+  "activity_ids": [],
+  "method_version": "coverage-1.0",
+  "computed_at": "2026-11-07T10:00:00Z"
+}

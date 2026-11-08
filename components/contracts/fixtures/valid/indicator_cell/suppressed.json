@@ -1,0 +1,27 @@
+{
+  "area": {
+    "area_id": "00000000-0000-4000-8000-000000000002",
+    "level": "sector"
+  },
+  "subject": "water_drinking",
+  "bucket": {
+    "width": "24h",
+    "start": "2026-11-06T04:00:00Z",
+    "end": "2026-11-07T04:00:00Z"
+  },
+  "suppressed": true,
+  "suppression": "below_k",
+  "metrics": null,
+  "freshness": "2026-11-07T03:10:00Z",
+  "coverage": "thin",
+  "confidence": {
+    "level": "low",
+    "reasons": [
+      "few_sources"
+    ]
+  },
+  "method_version": "indicators-1.0",
+  "profile_version": 1,
+  "input_watermark": "2026-11-07T03:10:00Z",
+  "computed_at": "2026-11-07T04:02:00Z"
+}

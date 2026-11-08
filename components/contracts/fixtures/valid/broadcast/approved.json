@@ -1,0 +1,15 @@
+{
+  "id": "00000000-0000-4000-8000-000000000800",
+  "template_key": "area_info_water_point",
+  "activity_id": "00000000-0000-4000-8000-000000000007",
+  "area_ids": [
+    "00000000-0000-4000-8000-000000000002"
+  ],
+  "include_provider_name": true,
+  "status": "approved",
+  "recipient_count": 37,
+  "created_by_user_id": "00000000-0000-4000-8000-000000000009",
+  "approved_by_user_id": "00000000-0000-4000-8000-000000000011",
+  "approved_at": "2026-11-07T10:00:00Z",
+  "created_at": "2026-11-07T10:00:00Z"
+}

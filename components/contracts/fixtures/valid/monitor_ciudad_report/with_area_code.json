@@ -1,0 +1,11 @@
+{
+  "schema_version": "1",
+  "informant_id": "inf_7f3a9c21",
+  "area_code": "LIB-23-04",
+  "service": "piped_water",
+  "status": "unavailable",
+  "observed_at": "2026-11-07T08:00:00Z",
+  "observed_at_precision": "approximate",
+  "hours_without_service": 36,
+  "submitted_at": "2026-11-07T10:00:00Z"
+}

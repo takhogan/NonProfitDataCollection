@@ -1,0 +1,7 @@
+{
+  "schema_version": "1",
+  "attempt_token": "atk_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+  "classification": "retryable",
+  "reason_code": "upstream_timeout",
+  "message": "Source timed out after 30s"
+}

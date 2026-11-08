@@ -1,0 +1,15 @@
+{
+  "code": "profile_violation",
+  "message_key": "errors.profile_violation",
+  "details": [
+    {
+      "loc": [
+        "location",
+        "address_text"
+      ],
+      "issue": "disallowed_by_profile",
+      "message_key": "errors.profile_violation.field"
+    }
+  ],
+  "request_id": "req_01HZX3"
+}

@@ -1,0 +1,24 @@
+{
+  "activity_id": "00000000-0000-4000-8000-000000000007",
+  "organization_name": "Agua Para Todos",
+  "type": "water_distribution_point",
+  "category": "water_drinking",
+  "areas": [
+    {
+      "area_id": "00000000-0000-4000-8000-000000000003",
+      "level": "parish",
+      "name": "Sucre"
+    }
+  ],
+  "schedule": {
+    "kind": "recurring",
+    "summary_es": "Sábados 8:00–12:00",
+    "timezone": "America/Caracas"
+  },
+  "public_location": {
+    "kind": "meeting_point",
+    "name": "Plaza Bolívar"
+  },
+  "status": "active",
+  "visibility": "internal_only"
+}

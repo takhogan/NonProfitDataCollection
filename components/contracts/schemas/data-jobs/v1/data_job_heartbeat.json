@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Body of ``POST /internal/data-jobs/{id}/heartbeat``.",
+  "properties": {
+    "attempt_token": {
+      "pattern": "^[A-Za-z0-9_-]{32,128}$",
+      "title": "Attempt Token",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": "1",
+      "title": "Schema Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "schema_version",
+    "attempt_token"
+  ],
+  "title": "DataJobHeartbeat",
+  "type": "object",
+  "x-contract-version": "v1"
+}

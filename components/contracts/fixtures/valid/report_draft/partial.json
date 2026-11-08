@@ -1,0 +1,13 @@
+{
+  "channel": "whatsapp",
+  "area": {
+    "area_id": "00000000-0000-4000-8000-000000000002",
+    "level": "sector"
+  },
+  "needs": [
+    {
+      "category": "water_other",
+      "stated_urgency": "routine"
+    }
+  ]
+}

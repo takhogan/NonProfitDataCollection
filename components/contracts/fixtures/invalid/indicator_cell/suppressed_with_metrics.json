@@ -1,0 +1,50 @@
+{
+  "area": {
+    "area_id": "00000000-0000-4000-8000-000000000002",
+    "level": "sector"
+  },
+  "subject": "water_drinking",
+  "bucket": {
+    "width": "24h",
+    "start": "2026-11-06T04:00:00Z",
+    "end": "2026-11-07T04:00:00Z"
+  },
+  "suppressed": true,
+  "suppression": "below_k",
+  "metrics": {
+    "count_unit": "reporters",
+    "distinct_reporters": 12,
+    "distinct_households": null,
+    "active_needs": 9,
+    "people_affected_known": 31,
+    "people_affected_unknown_count": 2,
+    "urgency_mix": {
+      "urgent": 3,
+      "routine": 4,
+      "low": 0,
+      "unknown": 2
+    },
+    "supply_mix": {
+      "none": 2,
+      "little": 5,
+      "some": 1,
+      "unknown": 1
+    },
+    "status_mix": null,
+    "pending_review_share": 0.25
+  },
+  "freshness": "2026-11-07T03:10:00Z",
+  "coverage": "reported",
+  "confidence": {
+    "level": "medium",
+    "reasons": [
+      "many_independent_sources",
+      "pending_review",
+      "no_external_context"
+    ]
+  },
+  "method_version": "indicators-1.0",
+  "profile_version": 1,
+  "input_watermark": "2026-11-07T03:10:00Z",
+  "computed_at": "2026-11-07T04:02:00Z"
+}
