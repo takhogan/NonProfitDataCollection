@@ -16,8 +16,9 @@ This repository contains the product plan, the requirements, and these runnable 
   The webhook is live on Cloud Run with a real number.
 - [`components/api`](components/api/README-DASHBOARD.md): the dashboard API (`dash`),
   which reads the same database through the backend's models.
-- [`components/web`](components/web/README.md): the React/TypeScript/Vite web app (mock
-  API by default) and the Firebase Hosting config for the public static pages.
+- [`components/web`](components/web/README.md): the Metron React/TypeScript/Vite frontend
+  (mock API by default), live as Cloud Run `metron-web` behind
+  https://metron-reporter.web.app, and the Firebase Hosting config.
 
 - [Product plan and logical schema](PLATFORM_PLAN.md)
 - [Component stacks, boundaries, and implementation roadmap](components/README.md)
@@ -67,7 +68,7 @@ own, the others are stopped too. A second Ctrl-C kills them at once.
 
 | Option | Effect |
 |---|---|
-| `npm run start:dev -- --web=http` (or `DEV_WEB_MODE=http`) | Web app uses the backend: `VITE_API_MODE=http`, `VITE_API_BASE_URL=http://localhost:8000` (override by exporting it). The default is the in-memory mock client. |
+| `npm run start:dev -- --web=http` (or `DEV_WEB_MODE=http`) | Web app uses the local dashboard API: `VITE_API_MODE=http`, `VITE_API_BASE_URL=http://localhost:8001` (override by exporting it). Log in as `demo@metron.org` / `demo-pass`. The default is the in-memory mock client. |
 | `npm run start:dev -- --no-seed` (or `DEV_SKIP_SEED=1`) | Skip both seed scripts. |
 | `npm run setup:dev` | Do steps 1 to 6 and exit (no ports needed). |
 | `PYTHON=python3.12 npm run start:dev` | Interpreter used to create missing venvs. |
@@ -113,23 +114,24 @@ tree (images are tagged with the commit hash).
 
 ```bash
 npm run deploy -- --dry-run     # preflight + plan + the exact commands; runs nothing
-npm run deploy                  # api, then dashboard, then web
-npm run deploy:api              # one target (deploy:dashboard, deploy:web)
+npm run deploy                  # api, then dashboard, then web, then site
+npm run deploy:api              # one target (deploy:dashboard, deploy:web, deploy:site)
 ```
 
 [`scripts/deploy.sh`](scripts/deploy.sh) checks first: a clean `components/`, an
-active gcloud account that can read the project, the `firebase` CLI, and that
-`components/web/static-site/` holds only `.html`/`.css`. It prints the image tag that
+active gcloud account that can read the project, and, for `site`, the `firebase` CLI
+and that `components/web/static-site/` holds only `.html`/`.css`. It prints the image tag that
 is live on each Cloud Run service and how many files changed since then. Then it asks
 you to type `deploy` (`--yes` skips this; without a terminal it refuses unless `--yes`).
 
 | Target | What runs | Notes |
 |---|---|---|
 | `api` | `components/whatsapp/api/deploy/gcloud-deploy.sh deploy` | Cloud Build image, then the `aid-migrate` Cloud Run job runs `alembic upgrade head` and waits, then the `whatsapp-webhook` service. See [DEPLOY.md](components/whatsapp/api/DEPLOY.md). The worker service (`aid-worker`) is **not** deployed; it is not approved yet. |
-| `dashboard` | `gcloud builds submit --config components/cloudbuild.dashboard.yaml`, then `components/api/deploy/gcloud-deploy.sh grant service url` | Same image tag. That script's own `build` step does not work: `gcloud builds submit` has no `-f` flag. Runs after `api` because it reads the schema the api migrates. |
-| `web` | `firebase deploy --only hosting` in `components/web` | Only the static pages in `static-site/`. The React app is not hosted yet. See [HOSTING.md](components/web/HOSTING.md). |
+| `dashboard` | `gcloud builds submit --config components/cloudbuild.dashboard.yaml`, then `components/api/deploy/gcloud-deploy.sh grant service url` with `SERVICE=metron-api` | Cloud Run `metron-api`, same image tag. `WEB_ORIGINS` (CORS) is set by `scripts/deploy.sh`. That script's own `build` step does not work: `gcloud builds submit` has no `-f` flag. Runs after `api` because it reads the schema the api migrates. |
+| `web` | `gcloud run deploy metron-web --source .` in `components/web` | The Metron frontend: [Dockerfile](components/web/Dockerfile) builds Vite against `metron-api` and serves it with nginx. |
+| `site` | `firebase deploy --only hosting` in `components/web` | https://metron-reporter.web.app: `/privacidad` (Meta's privacy URL) is static, everything else is rewritten to `metron-web`. See [HOSTING.md](components/web/HOSTING.md). |
 
-Targets always run in the order api, dashboard, web. Nothing is skipped
+Targets always run in the order api, dashboard, web, site. Nothing is skipped
 automatically, because "unchanged since the last deploy" cannot be decided reliably:
 live tags can be commits from other branches, and the dashboard image bundles the
 backend. Use the preflight's change count to decide which targets to name.
@@ -173,7 +175,7 @@ The stack was decided on 7 November 2026, following the first implementation.
   backend's OpenAPI document.
 
 Hosting: Google Cloud Run and Cloud SQL (PostgreSQL) in `us-east4` (Virginia), GCP
-project `csl-metron-webhook`, and Firebase Hosting for the static pages. See
+project `csl-metron-webhook`, and Firebase Hosting in front (metron-reporter.web.app). See
 [Deploying](#deploying). (The earlier plan was Render.)
 
 Start with synthetic data and assisted intake. Add real WhatsApp traffic after

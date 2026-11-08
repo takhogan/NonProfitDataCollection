@@ -11,6 +11,7 @@
     "deploy": "bash scripts/deploy.sh all",
     "deploy:api": "bash scripts/deploy.sh api",
     "deploy:dashboard": "bash scripts/deploy.sh dashboard",
-    "deploy:web": "bash scripts/deploy.sh web"
+    "deploy:web": "bash scripts/deploy.sh web",
+    "deploy:site": "bash scripts/deploy.sh site"
   }
 }

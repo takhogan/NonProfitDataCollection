@@ -2,7 +2,7 @@
 // Run every component locally with one command: `npm run start:dev`.
 //
 //   npm run start:dev                     # mock web client (default)
-//   npm run start:dev -- --web=http       # web talks to the backend on :8000
+//   npm run start:dev -- --web=http       # web talks to the dashboard API on :8001
 //   npm run start:dev -- --no-seed        # skip both seed scripts
 //   npm run start:dev -- --setup-only     # prepare db/venvs/migrations/seed, then exit
 //
@@ -269,7 +269,8 @@ process.on('SIGTERM', () => shutdown(0));
 process.on('SIGHUP', () => shutdown(0));
 
 const webEnv = { ...process.env, VITE_API_MODE: WEB_MODE };
-if (WEB_MODE === 'http') webEnv.VITE_API_BASE_URL ??= 'http://localhost:8000';
+// The Metron product UI (src/product) is built against the dashboard API.
+if (WEB_MODE === 'http') webEnv.VITE_API_BASE_URL ??= 'http://localhost:8001';
 
 startProc('api', path.join(BACKEND, '.venv/bin/uvicorn'),
   ['app.main:app', '--reload', '--port', '8000'], { cwd: BACKEND, env: process.env }, COLORS[0]);
