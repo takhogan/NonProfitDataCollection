@@ -1,0 +1,52 @@
+.form {
+  max-width: 720px;
+}
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  margin-bottom: 0.75rem;
+}
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  font-weight: 500;
+  margin-bottom: 0.5rem;
+  min-width: 0;
+  flex: 1 1 14rem;
+}
+.check {
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-start;
+  min-height: 40px;
+  padding: 0.3rem 0;
+}
+.check input {
+  width: 22px;
+  height: 22px;
+  margin: 0.1rem 0 0;
+  flex: none;
+}
+.check[hidden] {
+  display: none;
+}
+.group {
+  margin-top: 0.5rem;
+}
+.groupTitle {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+.days {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 1rem;
+}
+.error {
+  color: var(--danger);
+  font-size: 0.9rem;
+  margin: 0.25rem 0 0;
+}

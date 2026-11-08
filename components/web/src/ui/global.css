@@ -1,0 +1,123 @@
+/* System fonts only (WEB-063: no external fonts). */
+:root {
+  --bg: #ffffff;
+  --surface: #f5f6f8;
+  --text: #1b1f24;
+  --muted: #5b6470;
+  --border: #d4d8de;
+  --accent: #0b5cad;
+  --accent-text: #ffffff;
+  --danger: #a4262c;
+  --danger-bg: #fdecec;
+  --warn: #7a4b00;
+  --warn-bg: #fff4d6;
+  --ok: #1d6b35;
+  --ok-bg: #e5f4ea;
+  --unknown-bg: repeating-linear-gradient(135deg, #eef0f3 0 6px, #dfe3e8 6px 12px);
+  --focus: #ffbf47;
+  --radius: 6px;
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Noto Sans', sans-serif;
+  font-size: 16px;
+  line-height: 1.45;
+  color: var(--text);
+  background: var(--bg);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+}
+
+a {
+  color: var(--accent);
+}
+
+:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+h1 {
+  font-size: 1.4rem;
+  margin: 0.5rem 0 0.75rem;
+}
+h2 {
+  font-size: 1.15rem;
+  margin: 1.25rem 0 0.5rem;
+}
+h3 {
+  font-size: 1rem;
+  margin: 1rem 0 0.4rem;
+}
+
+button,
+select,
+input,
+textarea {
+  font: inherit;
+}
+
+button {
+  min-height: 44px;
+  padding: 0.4rem 0.9rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: var(--accent-text);
+  cursor: pointer;
+}
+button.secondary {
+  background: var(--bg);
+  color: var(--accent);
+}
+button.danger {
+  background: var(--bg);
+  color: var(--danger);
+  border-color: var(--danger);
+}
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+select,
+input[type='text'],
+input[type='number'],
+input[type='date'],
+input[type='time'] {
+  min-height: 44px;
+  padding: 0.3rem 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg);
+  color: var(--text);
+  max-width: 100%;
+}
+
+fieldset {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin: 0 0 1rem;
+  padding: 0.5rem 0.75rem 0.75rem;
+}
+legend {
+  font-weight: 600;
+  padding: 0 0.25rem;
+}
+
+.visually-hidden {
+  position: absolute !important;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.muted {
+  color: var(--muted);
+}

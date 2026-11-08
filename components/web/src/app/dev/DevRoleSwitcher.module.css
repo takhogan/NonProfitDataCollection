@@ -1,0 +1,35 @@
+.bar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 20;
+  background: repeating-linear-gradient(135deg, #2b2b2b 0 10px, #3a3a3a 10px 20px);
+  color: #ffd54a;
+  padding: 0.35rem 0.75rem;
+  font-size: 0.85rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.75rem;
+  align-items: center;
+  border-top: 3px solid #ffd54a;
+}
+.bar strong {
+  letter-spacing: 0.05em;
+}
+.bar label {
+  display: flex;
+  gap: 0.3rem;
+  align-items: center;
+}
+.bar select,
+.bar button {
+  min-height: 32px;
+  font-size: 0.85rem;
+  padding: 0.1rem 0.4rem;
+}
+.bar button {
+  background: #ffd54a;
+  color: #1b1f24;
+  border-color: #ffd54a;
+}
