@@ -7,16 +7,19 @@ startup probe kills the instance, so when PORT is set (only on Cloud Run) the
 worker also answers GET /health on that port from a background thread. It
 serves nothing else. Locally PORT is unset and no port is opened.
 
-Each cycle does two things:
-  1. process inbound_event rows: for a text message, queue a canned Spanish
-     greeting into the outbox in the SAME transaction as marking the event
-     processed; for a status event, update the matching outbox row.
-  2. send queued outbox rows via the WhatsApp adapter, storing the provider
-     message id and retrying transient failures.
+Each cycle (see app/whatsapp/):
+  1. surge mode: if the oldest waiting message is older than SURGE_LAG_SECONDS,
+     queue one holding reply per waiting conversation (OPW-035);
+  2. process inbound_event rows: route each message to its organization's
+     conversation engine (questionnaire state machine) and each delivery status
+     to the matching outbox/message row (inbound.py, engine.py);
+  3. send due outbox_message rows through the adapter with the 24-hour window,
+     opt-out gate, templates, rate limit and uncertain-send reconciliation
+     (sender.py).
 
-The loop is idempotent: an event already marked processed is skipped, and a
-per-event dedupe_key prevents a replayed event from queueing a second reply, so
-a worker restart does not double-handle anything or double-send.
+Everything is idempotent: inbound messages are unique per provider id, replies
+are queued in the same transaction as the state change, and a send that may
+have reached Meta is never resent.
 """
 from __future__ import annotations
 
@@ -27,14 +30,13 @@ import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-from sqlalchemy import select
-from sqlalchemy.orm import Session
 
 from app.config import get_settings
-from app.db import SessionLocal
-from app.models.system import InboundEvent
+from app.models.base import utcnow
 from app.whatsapp.adapter import get_adapter
-from app.whatsapp.messaging import process_inbound_event, send_outbox_batch
+from app.whatsapp.extraction import get_extractor
+from app.whatsapp.inbound import pending_event_ids, process_event, queue_surge_holding
+from app.whatsapp.sender import send_pending
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger("worker")
@@ -70,27 +72,17 @@ def start_health_server(port: int) -> ThreadingHTTPServer:
     return server
 
 
-def process_batch(db: Session, batch_size: int) -> int:
-    """Claim and process one batch of unprocessed inbound events. Returns count."""
-    events = list(
-        db.scalars(
-            select(InboundEvent)
-            .where(InboundEvent.processed_at.is_(None))
-            .order_by(InboundEvent.received_at.asc())
-            .limit(batch_size)
-            .with_for_update(skip_locked=True)  # ignored by SQLite, honored by Postgres
-        )
-    )
-    for event in events:
-        log.info(
-            "processing inbound_event id=%s type=%s provider_message_id=%s signature_valid=%s",
-            event.id, event.event_type, event.provider_message_id, event.signature_valid,
-        )
-        # Queue any reply AND mark processed in the same transaction (outbox).
-        process_inbound_event(db, event, org_name=get_settings().pilot_org_name)
-    if events:
-        db.commit()
-    return len(events)
+def run_cycle(adapter, extractor, batch_size: int, session_factory=None) -> tuple[int, int]:
+    """One worker cycle: surge holding replies, inbound events, then sends."""
+    now = utcnow()
+    queue_surge_holding(batch_size, now, session_factory)
+    handled = 0
+    for event_id in pending_event_ids(batch_size, now, session_factory):
+        status = process_event(event_id, extractor, now, session_factory)
+        log.info("inbound_event id=%s -> %s", event_id, status)
+        handled += 1
+    sent = send_pending(adapter, batch_size, utcnow(), session_factory)
+    return handled, sent
 
 
 def run() -> None:
@@ -112,17 +104,15 @@ def run() -> None:
 
     adapter = get_adapter()
 
+    extractor = get_extractor()
+    log.info("openai extraction: %s", "on" if extractor else "off")
+
     while _running:
-        db = SessionLocal()
         try:
-            handled = process_batch(db, batch_size)
-            sent = send_outbox_batch(db, adapter, batch_size)
+            handled, sent = run_cycle(adapter, extractor, batch_size)
         except Exception:  # keep the worker alive on transient errors
             log.exception("error while processing batch")
-            db.rollback()
             handled, sent = 0, 0
-        finally:
-            db.close()
 
         if handled == 0 and sent == 0:
             # Idle: sleep in short slices so SIGTERM is handled promptly.

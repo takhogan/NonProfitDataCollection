@@ -60,6 +60,47 @@ class Settings(BaseSettings):
     worker_poll_interval_seconds: float = 5.0
     worker_batch_size: int = 20
 
+    # --- WhatsApp conversation engine (OPW-010..035) ---
+    # App-level encryption (DB-050) and lookup HMAC (DB-051) keys: base64, 32
+    # bytes each. Required in production; local dev derives non-secret keys.
+    data_encryption_key: str = ""
+    lookup_hmac_key: str = ""
+    # A conversation resumes within this many hours (OPW-017); after that the
+    # next message starts a new report.
+    conversation_resume_hours: int = 48
+    # Free-form replies only inside the 24-hour customer-service window (OPW-031).
+    whatsapp_session_window_hours: int = 24
+    # Approved Meta templates, JSON: {"report_received": {"name": "...",
+    # "language": "es"}, ...}. Registered by the WhatsApp contributor (OPW-033).
+    whatsapp_templates_json: str = "{}"
+    # Outbound token bucket (OPW-034): sustained sends per second and burst.
+    whatsapp_send_rate_per_second: float = 10.0
+    whatsapp_send_burst: int = 20
+    # Surge mode (OPW-035): when the oldest unprocessed inbound event is older
+    # than this, send one holding reply per conversation first.
+    surge_lag_seconds: int = 120
+    # A send that may have reached Meta (timeout after submission) is never
+    # resent blindly (OPW-032). It waits this long for a status webhook that
+    # names it; otherwise it becomes a visible failure.
+    uncertain_send_reconcile_minutes: int = 15
+    # Urgent path referral content (OPW-021, D15). Configured per deployment.
+    urgent_referral_text: str = (
+        "Si hay riesgo para la vida, contacta a los servicios de emergencia locales "
+        "o a un centro de salud cercano."
+    )
+
+    # --- Optional OpenAI extraction (amended OPW-023) ---
+    # Off by default. When on, ONLY a short typed answer that the deterministic
+    # parser could not read is sent, after phone numbers, e-mails and long digit
+    # runs are removed. Address answers, names and the sender's number are never
+    # sent. The model returns JSON in a fixed schema; code validates it and
+    # writes the rows. The model never chooses database ids or writes SQL.
+    openai_extraction: bool = False
+    openai_api_key: str = ""
+    openai_model: str = "gpt-4.1-mini"
+    openai_base_url: str = "https://api.openai.com/v1"
+    openai_timeout_seconds: float = 15.0
+
     # --- Staff authentication (API-010..014). Added for the /v1 API. ---
     # The browser origin of the staff web app, e.g. https://app.example.org.
     # Credentialed CORS is allowed from this origin only; empty disables CORS.
@@ -125,6 +166,14 @@ class Settings(BaseSettings):
 
         if not self.seed_demo_password:
             missing.append("SEED_DEMO_PASSWORD")
+
+        # Conversation data is encrypted at the application layer (DB-050/051).
+        for field in ("data_encryption_key", "lookup_hmac_key"):
+            if not getattr(self, field):
+                missing.append(field.upper())
+
+        if self.openai_extraction and not self.openai_api_key:
+            missing.append("OPENAI_API_KEY (OPENAI_EXTRACTION is on)")
 
         if missing:
             raise ConfigError(

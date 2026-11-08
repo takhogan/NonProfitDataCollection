@@ -148,6 +148,7 @@ class OutboxMessage(TenantOwned, Base):
         check_in("outbox_message", "status", OUTBOX_STATUSES),
         UniqueConstraint("organization_id", "dedupe_key", name="uq_outbox_dedupe"),
         Index("ix_outbox_pending", "organization_id", "status", "next_attempt_at"),
+        Index("ix_outbox_provider_message", "provider_message_id"),
     )
 
     purpose: Mapped[str] = mapped_column(String(32), nullable=False)
@@ -164,6 +165,12 @@ class OutboxMessage(TenantOwned, Base):
     provider_message_id: Mapped[str | None] = mapped_column(String(128), nullable=True)
     dedupe_key: Mapped[str] = mapped_column(String(200), nullable=False)
     sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # Rendered message (text / buttons / list), built when the intent is queued.
+    message_json: Mapped[dict] = mapped_column(JSONType, nullable=False, default=dict)
+    # Higher sends first (OPW-034): replies > refresh prompts > broadcasts.
+    priority: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    # Redacted failure reason (never the message body or the phone number).
+    last_error: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 
 class AuditEvent(AppendOnly, TenantOwned, Base):

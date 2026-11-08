@@ -43,6 +43,8 @@ SECRET_MAP=(
   "whatsapp-token:WHATSAPP_TOKEN"
   "whatsapp-phone-id:PHONE_NUMBER_ID"
   "seed-demo-password:SEED_DEMO_PASSWORD"
+  "data-encryption-key:DATA_ENCRYPTION_KEY"
+  "lookup-hmac-key:LOOKUP_HMAC_KEY"
 )
 
 g() { gcloud --project="$PROJECT_ID" --quiet "$@"; }
@@ -138,6 +140,11 @@ step_secrets() {
   openssl rand -hex 32 | tr -d '\n' | ensure_secret jwt-secret
   openssl rand -hex 24 | tr -d '\n' | ensure_secret verify-token
   openssl rand -hex 24 | tr -d '\n' | ensure_secret seed-demo-password
+  # App-level encryption (DB-050) and lookup HMAC (DB-051) keys. Created once and
+  # never rotated by this script: a new data key would make existing ciphertext
+  # (phone numbers, addresses, notes) unreadable.
+  openssl rand -base64 32 | tr -d '\n' | ensure_secret data-encryption-key
+  openssl rand -base64 32 | tr -d '\n' | ensure_secret lookup-hmac-key
   # Meta-owned values. Until davidkim1 adds real versions, APP_SECRET is a random
   # synthetic value (so only our own test requests verify) and the outbound
   # token/phone id are placeholders (nothing sends from this service yet).
