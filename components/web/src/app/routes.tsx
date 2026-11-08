@@ -11,7 +11,8 @@ import type { ReactNode } from 'react';
 // WEB-006: every page is its own chunk.
 const AreasOfNeedPage = lazy(() => import('../features/areas/AreasOfNeedPage'));
 const AreaDetailPage = lazy(() => import('../features/areas/AreaDetailPage'));
-const CoveragePage = lazy(() => import('../features/coverage/CoveragePage'));
+// CoveragePage was never built; legacy routes are no longer mounted (see src/product).
+const CoveragePage = lazy(() => import('../features/placeholders/PlaceholderPage'));
 const MyActivitiesPage = lazy(() => import('../features/activities/MyActivitiesPage'));
 const LogActivityPage = lazy(() => import('../features/activities/LogActivityPage'));
 const AlertsPage = lazy(() => import('../features/alerts/AlertsPage'));
@@ -35,7 +36,7 @@ export const routes: RouteObject[] = [
       { index: true, element: <RoleHome /> },
       { path: 'areas', element: guard(AGG, <AreasOfNeedPage />) },
       { path: 'areas/:areaId', element: guard(AGG, <AreaDetailPage />) },
-      { path: 'coverage', element: guard(AGG, <CoveragePage />) },
+      { path: 'coverage', element: guard(AGG, <CoveragePage title="nav.coverage" />) },
       { path: 'activities', element: guard(['provider'], <MyActivitiesPage />) },
       { path: 'activities/new', element: guard(['provider'], <LogActivityPage />) },
       { path: 'alerts', element: guard(['provider'], <AlertsPage />) },
