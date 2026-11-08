@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 
 from dash.context import RequestContext, resolve_data_protection
 from dash.deps import get_context, get_db
-from dash.errors import Conflict
+from dash.errors import Conflict, PermissionDenied
 from dash.read_models import (
     find_user_by_email, memberships_for_user, user_by_id,
 )
