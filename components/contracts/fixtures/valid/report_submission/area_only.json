@@ -1,0 +1,25 @@
+{
+  "channel": "assisted_intake",
+  "relationship": "area",
+  "area": {
+    "area_id": "00000000-0000-4000-8000-000000000003",
+    "level": "parish"
+  },
+  "observations": [
+    {
+      "service": "piped_water",
+      "status": "intermittent",
+      "observed_at": {
+        "precision": "day",
+        "at": "2026-11-07T00:00:00Z"
+      }
+    }
+  ],
+  "needs": [],
+  "permissions": [],
+  "questionnaire": {
+    "key": "csl_report",
+    "version": 1
+  },
+  "operation_key": "intake:vol7:0042"
+}

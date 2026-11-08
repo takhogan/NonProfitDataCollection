@@ -1,0 +1,10 @@
+{
+  "outcome": "location_corrected",
+  "rationale": "Sector equivocado",
+  "corrected_area": {
+    "area_id": "00000000-0000-4000-8000-000000000002",
+    "level": "sector"
+  },
+  "review_after": "2026-11-14T10:00:00Z",
+  "operation_key": "rev:900:2"
+}

@@ -1,0 +1,34 @@
+{
+  "schema_version": "1",
+  "job_id": "00000000-0000-4000-8000-000000000300",
+  "operation_key": "dj:mc:2026-11-07:sector-1",
+  "processing_version": "mc-ingest-0.1.0",
+  "source_id": "monitor_ciudad_mock",
+  "source_reference": "mock://monitor-ciudad/2026-11-07",
+  "license_reference": "csl-internal-use",
+  "observed_from": "2026-11-06T10:00:00Z",
+  "observed_to": "2026-11-07T10:00:00Z",
+  "retrieved_at": "2026-11-07T10:01:00Z",
+  "area_id": "00000000-0000-4000-8000-000000000002",
+  "geometry_version": 2,
+  "temporal_resolution": "P1D",
+  "indicator_type": "monitor_ciudad_service_status",
+  "value": 0.64,
+  "unit": "liters",
+  "method_version": "mc-share-1",
+  "quality_flags": [
+    "few_informants"
+  ],
+  "limitations": [
+    "Mock source; synthetic data."
+  ],
+  "data_availability": "usable",
+  "artifact_references": [
+    {
+      "object_key": "orgs/x/data-jobs/300/summary.json",
+      "media_type": "application/json",
+      "size_bytes": 512,
+      "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    }
+  ]
+}

@@ -1,0 +1,100 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Assumed upstream record used by the mock source until D10 is resolved.",
+  "oneOf": [
+    {
+      "required": [
+        "area_code"
+      ]
+    },
+    {
+      "required": [
+        "area_alias"
+      ]
+    }
+  ],
+  "properties": {
+    "area_alias": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Area Alias",
+      "type": "string"
+    },
+    "area_code": {
+      "pattern": "^[A-Z0-9-]{2,32}$",
+      "title": "Area Code",
+      "type": "string"
+    },
+    "hours_without_service": {
+      "maximum": 1440,
+      "minimum": 0,
+      "title": "Hours Without Service",
+      "type": "number"
+    },
+    "informant_id": {
+      "description": "Pseudonymous informant ID; never a phone number or name.",
+      "pattern": "^[A-Za-z0-9_-]{8,64}$",
+      "title": "Informant Id",
+      "type": "string"
+    },
+    "observed_at": {
+      "format": "date-time",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]{1,6})?(Z|\\+00:00)$",
+      "title": "Observed At",
+      "type": "string"
+    },
+    "observed_at_precision": {
+      "enum": [
+        "exact",
+        "approximate",
+        "day",
+        "unknown"
+      ],
+      "title": "Observed At Precision",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": "1",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "service": {
+      "enum": [
+        "electricity",
+        "piped_water"
+      ],
+      "title": "Service",
+      "type": "string"
+    },
+    "status": {
+      "enum": [
+        "available",
+        "unavailable",
+        "intermittent",
+        "unknown"
+      ],
+      "title": "Status",
+      "type": "string"
+    },
+    "submitted_at": {
+      "format": "date-time",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]{1,6})?(Z|\\+00:00)$",
+      "title": "Submitted At",
+      "type": "string"
+    }
+  },
+  "required": [
+    "schema_version",
+    "informant_id",
+    "service",
+    "status",
+    "observed_at",
+    "observed_at_precision",
+    "submitted_at"
+  ],
+  "title": "MonitorCiudadReport",
+  "type": "object",
+  "x-assumed": true,
+  "x-contract-version": "v1"
+}

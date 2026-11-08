@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "job_id": {
+      "format": "uuid",
+      "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+      "title": "Job Id",
+      "type": "string"
+    },
+    "job_type": {
+      "const": "message_send",
+      "title": "Job Type",
+      "type": "string"
+    },
+    "operation_key": {
+      "pattern": "^[A-Za-z0-9._:-]{8,128}$",
+      "title": "Operation Key",
+      "type": "string"
+    },
+    "organization_id": {
+      "format": "uuid",
+      "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+      "title": "Organization Id",
+      "type": "string"
+    },
+    "outbound_intent_id": {
+      "format": "uuid",
+      "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+      "title": "Outbound Intent Id",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": "1",
+      "title": "Schema Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "schema_version",
+    "job_id",
+    "organization_id",
+    "operation_key",
+    "job_type",
+    "outbound_intent_id"
+  ],
+  "title": "MessageSendJob",
+  "type": "object",
+  "x-contract-version": "v1"
+}

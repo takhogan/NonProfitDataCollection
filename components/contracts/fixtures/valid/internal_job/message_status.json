@@ -1,0 +1,8 @@
+{
+  "schema_version": "1",
+  "job_id": "00000000-0000-4000-8000-000000000200",
+  "organization_id": "00000000-0000-4000-8000-000000000001",
+  "operation_key": "op:intake:0001",
+  "job_type": "message_status",
+  "status_event_id": "00000000-0000-4000-8000-000000000101"
+}

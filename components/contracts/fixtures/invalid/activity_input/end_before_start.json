@@ -1,0 +1,29 @@
+{
+  "type": "water_distribution_point",
+  "category": "water_drinking",
+  "area_ids": [
+    "00000000-0000-4000-8000-000000000002"
+  ],
+  "schedule": {
+    "kind": "recurring",
+    "weekdays": [
+      "sat"
+    ],
+    "start_time": "08:00",
+    "end_time": "07:00",
+    "timezone": "America/Caracas",
+    "valid_from": "2026-11-07"
+  },
+  "capacity": {
+    "value": 2000,
+    "unit": "liters",
+    "per": "day"
+  },
+  "public_location": {
+    "kind": "meeting_point",
+    "meeting_point_id": "00000000-0000-4000-8000-000000000004"
+  },
+  "visibility": "public",
+  "status": "planned",
+  "operation_key": "act:prov1:0001"
+}

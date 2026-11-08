@@ -1,0 +1,487 @@
+{
+  "$defs": {
+    "AlertEvaluateJob": {
+      "additionalProperties": false,
+      "properties": {
+        "indicator_snapshot_id": {
+          "format": "uuid",
+          "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+          "title": "Indicator Snapshot Id",
+          "type": "string"
+        },
+        "job_id": {
+          "format": "uuid",
+          "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+          "title": "Job Id",
+          "type": "string"
+        },
+        "job_type": {
+          "const": "alert_evaluate",
+          "title": "Job Type",
+          "type": "string"
+        },
+        "operation_key": {
+          "pattern": "^[A-Za-z0-9._:-]{8,128}$",
+          "title": "Operation Key",
+          "type": "string"
+        },
+        "organization_id": {
+          "format": "uuid",
+          "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+          "title": "Organization Id",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": "1",
+          "title": "Schema Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "schema_version",
+        "job_id",
+        "organization_id",
+        "operation_key",
+        "job_type",
+        "indicator_snapshot_id"
+      ],
+      "title": "AlertEvaluateJob",
+      "type": "object"
+    },
+    "BroadcastJob": {
+      "additionalProperties": false,
+      "properties": {
+        "broadcast_id": {
+          "format": "uuid",
+          "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+          "title": "Broadcast Id",
+          "type": "string"
+        },
+        "job_id": {
+          "format": "uuid",
+          "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+          "title": "Job Id",
+          "type": "string"
+        },
+        "job_type": {
+          "const": "broadcast",
+          "title": "Job Type",
+          "type": "string"
+        },
+        "operation_key": {
+          "pattern": "^[A-Za-z0-9._:-]{8,128}$",
+          "title": "Operation Key",
+          "type": "string"
+        },
+        "organization_id": {
+          "format": "uuid",
+          "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+          "title": "Organization Id",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": "1",
+          "title": "Schema Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "schema_version",
+        "job_id",
+        "organization_id",
+        "operation_key",
+        "job_type",
+        "broadcast_id"
+      ],
+      "title": "BroadcastJob",
+      "type": "object"
+    },
+    "EvidenceIngestJob": {
+      "additionalProperties": false,
+      "properties": {
+        "data_job_result_id": {
+          "format": "uuid",
+          "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+          "title": "Data Job Result Id",
+          "type": "string"
+        },
+        "job_id": {
+          "format": "uuid",
+          "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+          "title": "Job Id",
+          "type": "string"
+        },
+        "job_type": {
+          "const": "evidence_ingest",
+          "title": "Job Type",
+          "type": "string"
+        },
+        "operation_key": {
+          "pattern": "^[A-Za-z0-9._:-]{8,128}$",
+          "title": "Operation Key",
+          "type": "string"
+        },
+        "organization_id": {
+          "format": "uuid",
+          "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+          "title": "Organization Id",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": "1",
+          "title": "Schema Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "schema_version",
+        "job_id",
+        "organization_id",
+        "operation_key",
+        "job_type",
+        "data_job_result_id"
+      ],
+      "title": "EvidenceIngestJob",
+      "type": "object"
+    },
+    "IndicatorRefreshJob": {
+      "additionalProperties": false,
+      "properties": {
+        "area_ids": {
+          "items": {
+            "format": "uuid",
+            "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+            "type": "string"
+          },
+          "maxItems": 500,
+          "minItems": 1,
+          "title": "Area Ids",
+          "type": "array"
+        },
+        "job_id": {
+          "format": "uuid",
+          "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+          "title": "Job Id",
+          "type": "string"
+        },
+        "job_type": {
+          "const": "indicator_refresh",
+          "title": "Job Type",
+          "type": "string"
+        },
+        "operation_key": {
+          "pattern": "^[A-Za-z0-9._:-]{8,128}$",
+          "title": "Operation Key",
+          "type": "string"
+        },
+        "organization_id": {
+          "format": "uuid",
+          "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+          "title": "Organization Id",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": "1",
+          "title": "Schema Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "schema_version",
+        "job_id",
+        "organization_id",
+        "operation_key",
+        "job_type",
+        "area_ids"
+      ],
+      "title": "IndicatorRefreshJob",
+      "type": "object"
+    },
+    "IntakeProcessJob": {
+      "additionalProperties": false,
+      "properties": {
+        "inbound_event_id": {
+          "format": "uuid",
+          "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+          "title": "Inbound Event Id",
+          "type": "string"
+        },
+        "job_id": {
+          "format": "uuid",
+          "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+          "title": "Job Id",
+          "type": "string"
+        },
+        "job_type": {
+          "const": "intake_process",
+          "title": "Job Type",
+          "type": "string"
+        },
+        "operation_key": {
+          "pattern": "^[A-Za-z0-9._:-]{8,128}$",
+          "title": "Operation Key",
+          "type": "string"
+        },
+        "organization_id": {
+          "format": "uuid",
+          "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+          "title": "Organization Id",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": "1",
+          "title": "Schema Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "schema_version",
+        "job_id",
+        "organization_id",
+        "operation_key",
+        "job_type",
+        "inbound_event_id"
+      ],
+      "title": "IntakeProcessJob",
+      "type": "object"
+    },
+    "MessageSendJob": {
+      "additionalProperties": false,
+      "properties": {
+        "job_id": {
+          "format": "uuid",
+          "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+          "title": "Job Id",
+          "type": "string"
+        },
+        "job_type": {
+          "const": "message_send",
+          "title": "Job Type",
+          "type": "string"
+        },
+        "operation_key": {
+          "pattern": "^[A-Za-z0-9._:-]{8,128}$",
+          "title": "Operation Key",
+          "type": "string"
+        },
+        "organization_id": {
+          "format": "uuid",
+          "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+          "title": "Organization Id",
+          "type": "string"
+        },
+        "outbound_intent_id": {
+          "format": "uuid",
+          "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+          "title": "Outbound Intent Id",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": "1",
+          "title": "Schema Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "schema_version",
+        "job_id",
+        "organization_id",
+        "operation_key",
+        "job_type",
+        "outbound_intent_id"
+      ],
+      "title": "MessageSendJob",
+      "type": "object"
+    },
+    "MessageStatusJob": {
+      "additionalProperties": false,
+      "properties": {
+        "job_id": {
+          "format": "uuid",
+          "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+          "title": "Job Id",
+          "type": "string"
+        },
+        "job_type": {
+          "const": "message_status",
+          "title": "Job Type",
+          "type": "string"
+        },
+        "operation_key": {
+          "pattern": "^[A-Za-z0-9._:-]{8,128}$",
+          "title": "Operation Key",
+          "type": "string"
+        },
+        "organization_id": {
+          "format": "uuid",
+          "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+          "title": "Organization Id",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": "1",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "status_event_id": {
+          "format": "uuid",
+          "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+          "title": "Status Event Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "schema_version",
+        "job_id",
+        "organization_id",
+        "operation_key",
+        "job_type",
+        "status_event_id"
+      ],
+      "title": "MessageStatusJob",
+      "type": "object"
+    },
+    "RefreshPromptJob": {
+      "additionalProperties": false,
+      "properties": {
+        "job_id": {
+          "format": "uuid",
+          "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+          "title": "Job Id",
+          "type": "string"
+        },
+        "job_type": {
+          "const": "refresh_prompt",
+          "title": "Job Type",
+          "type": "string"
+        },
+        "need_id": {
+          "format": "uuid",
+          "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+          "title": "Need Id",
+          "type": "string"
+        },
+        "operation_key": {
+          "pattern": "^[A-Za-z0-9._:-]{8,128}$",
+          "title": "Operation Key",
+          "type": "string"
+        },
+        "organization_id": {
+          "format": "uuid",
+          "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+          "title": "Organization Id",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": "1",
+          "title": "Schema Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "schema_version",
+        "job_id",
+        "organization_id",
+        "operation_key",
+        "job_type",
+        "need_id"
+      ],
+      "title": "RefreshPromptJob",
+      "type": "object"
+    },
+    "RetentionJob": {
+      "additionalProperties": false,
+      "properties": {
+        "job_id": {
+          "format": "uuid",
+          "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+          "title": "Job Id",
+          "type": "string"
+        },
+        "job_type": {
+          "const": "retention",
+          "title": "Job Type",
+          "type": "string"
+        },
+        "operation_key": {
+          "pattern": "^[A-Za-z0-9._:-]{8,128}$",
+          "title": "Operation Key",
+          "type": "string"
+        },
+        "organization_id": {
+          "format": "uuid",
+          "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+          "title": "Organization Id",
+          "type": "string"
+        },
+        "policy_version_id": {
+          "format": "uuid",
+          "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+          "title": "Policy Version Id",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": "1",
+          "title": "Schema Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "schema_version",
+        "job_id",
+        "organization_id",
+        "operation_key",
+        "job_type",
+        "policy_version_id"
+      ],
+      "title": "RetentionJob",
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "discriminator": {
+    "mapping": {
+      "alert_evaluate": "#/$defs/AlertEvaluateJob",
+      "broadcast": "#/$defs/BroadcastJob",
+      "evidence_ingest": "#/$defs/EvidenceIngestJob",
+      "indicator_refresh": "#/$defs/IndicatorRefreshJob",
+      "intake_process": "#/$defs/IntakeProcessJob",
+      "message_send": "#/$defs/MessageSendJob",
+      "message_status": "#/$defs/MessageStatusJob",
+      "refresh_prompt": "#/$defs/RefreshPromptJob",
+      "retention": "#/$defs/RetentionJob"
+    },
+    "propertyName": "job_type"
+  },
+  "oneOf": [
+    {
+      "$ref": "#/$defs/IntakeProcessJob"
+    },
+    {
+      "$ref": "#/$defs/MessageSendJob"
+    },
+    {
+      "$ref": "#/$defs/MessageStatusJob"
+    },
+    {
+      "$ref": "#/$defs/EvidenceIngestJob"
+    },
+    {
+      "$ref": "#/$defs/IndicatorRefreshJob"
+    },
+    {
+      "$ref": "#/$defs/AlertEvaluateJob"
+    },
+    {
+      "$ref": "#/$defs/RefreshPromptJob"
+    },
+    {
+      "$ref": "#/$defs/BroadcastJob"
+    },
+    {
+      "$ref": "#/$defs/RetentionJob"
+    }
+  ],
+  "title": "InternalJob",
+  "x-contract-version": "v1"
+}
