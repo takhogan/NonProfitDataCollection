@@ -60,6 +60,42 @@ class Settings(BaseSettings):
     worker_poll_interval_seconds: float = 5.0
     worker_batch_size: int = 20
 
+    # --- Staff authentication (API-010..014). Added for the /v1 API. ---
+    # The browser origin of the staff web app, e.g. https://app.example.org.
+    # Credentialed CORS is allowed from this origin only; empty disables CORS.
+    web_origin: str = ""
+    # Session cookie. Secure is on by default; set SESSION_COOKIE_SECURE=false
+    # only for plain-http local development. With Secure on and no domain, the
+    # cookie gets the __Host- prefix (bound to this exact host).
+    session_cookie_secure: bool = True
+    session_cookie_domain: str = ""
+    # SEC-05 timeouts.
+    session_idle_timeout_minutes: int = 30
+    session_absolute_timeout_hours: int = 12
+    # Short window for the password -> TOTP step and the OIDC round trip.
+    preauth_timeout_minutes: int = 5
+    # Password sign-in lockout.
+    password_max_failures: int = 5
+    password_lockout_minutes: int = 15
+    # Google OIDC. Empty client id disables Google sign-in (404).
+    oidc_google_client_id: str = ""
+    oidc_google_client_secret: str = ""
+    oidc_google_metadata_url: str = "https://accounts.google.com/.well-known/openid-configuration"
+    # Absolute callback URL registered with Google, e.g.
+    # https://api.example.org/v1/auth/oidc/google/callback
+    oidc_google_redirect_uri: str = ""
+    # TOTP issuer label shown in authenticator apps (keep neutral, SEC-12).
+    totp_issuer: str = "Metron"
+    # Rate limits (API-111), per client IP, per minute. In-process counters.
+    rate_limit_signin_per_minute: int = 10
+    rate_limit_webhook_per_minute: int = 1200
+    # Number of trusted proxies that append to X-Forwarded-For (0 = use the
+    # socket peer address). Cloud Run's front end appends one hop.
+    forwarded_for_trusted_hops: int = 0
+    # Structured JSON logs (API-112). Disable for readable local output.
+    json_logs: bool = True
+    log_level: str = "INFO"
+
     @property
     def is_production(self) -> bool:
         return self.app_env.lower() == "production"

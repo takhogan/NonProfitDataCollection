@@ -10,12 +10,12 @@ def test_login_returns_token(client, seeded):
 
 def test_login_bad_password(client, seeded):
     resp = client.post("/auth/login", json={"email": "a@example.org", "password": "wrong"})
-    assert resp.status_code == 403
-    assert resp.json()["error"]["code"] == "permission_denied"
+    assert resp.status_code == 401
+    assert resp.json()["code"] == "unauthenticated"
 
 
 def test_me_requires_auth(client, seeded):
-    assert client.get("/me").status_code == 403
+    assert client.get("/me").status_code == 401
 
 
 def test_me_returns_memberships(client, seeded):

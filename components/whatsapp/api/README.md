@@ -70,31 +70,66 @@ Password for all: the value of `SEED_DEMO_PASSWORD` (defaults to
 | luis@aguazul.org | Agua Azul | caseworker |
 | maria@luzviva.org | Luz Viva | coordinator |
 
-### Try the first deliverable
+### Staff sign-in and routes
+
+Staff API routes live under `/v1` and use **server-side sessions in an
+`HttpOnly`/`Secure`/`SameSite=Lax` cookie** (`__Host-sid`), with a 30-minute
+idle timeout and a 12-hour absolute limit. The organization comes from the
+session's active membership, never from the URL or body.
+
+| Route | Purpose |
+|-------|---------|
+| `POST /v1/auth/password/login` | Email + password (Argon2id). Sets a 5-minute pre-auth session; returns `{stage, csrf_token}` |
+| `POST /v1/auth/totp/enroll` | First sign-in only: returns the TOTP secret and `otpauth://` URI |
+| `POST /v1/auth/totp/verify` | TOTP code → rotated, active session |
+| `GET /v1/auth/oidc/google/start?next=/path` | Google sign-in (authorization code + PKCE); invited, verified emails only |
+| `GET /v1/auth/oidc/google/callback` | Redirects back to `WEB_ORIGIN` + `next` |
+| `POST /v1/auth/logout` | End this session |
+| `GET /v1/me` | Memberships, active org and role, session info, CSRF token |
+| `POST /v1/me/active-organization` | Switch org among the caller's own memberships |
+| `POST /v1/me/revoke-all` | End all of the caller's sessions |
+| `GET /v1/admin/users/{id}/sessions`, `POST .../revoke-sessions` | Org admin: list or end a member's sessions |
+| `POST /v1/households`, `GET /v1/households/{id}`, `GET /v1/cases` | Assisted intake and retrieval |
+| `GET /livez`, `GET /readyz` (`/health` = `/livez`) | Liveness; readiness checks the database |
+
+Every cookie-authenticated `POST`/`PUT`/`PATCH`/`DELETE` needs the session's
+CSRF token in `X-CSRF-Token` (from the sign-in response or `GET /v1/me`; keep it
+in memory, not browser storage). Credentialed CORS is allowed only from
+`WEB_ORIGIN`. Five failed password or TOTP attempts lock the account for 15
+minutes, and all sign-in errors are the same generic `unauthenticated`.
+
+**Deprecated:** `/orgs/{org_id}/households`, `/orgs/{org_id}/cases` and `/me`
+still work (cookie or dev bearer) and return `Deprecation: true` plus a `Link`
+to the `/v1` route. They will be removed once the deployed clients move.
+
+**Development only:** `POST /auth/login` exchanges a seeded user's password for a
+JWT bearer token, accepted by `/v1` and the legacy routes. It is not mounted in
+production, and bearer tokens are rejected there.
 
 ```bash
-# 1. Log in -> JWT
 TOKEN=$(curl -s localhost:8000/auth/login \
   -H 'content-type: application/json' \
   -d '{"email":"ana@aguazul.org","password":"local-demo-pass"}' | python3 -c 'import sys,json;print(json.load(sys.stdin)["access_token"])')
-
-# 2. Who am I / my orgs
-curl -s localhost:8000/me -H "authorization: Bearer $TOKEN"
-
-# 3. Find my org id, then create an assisted intake (org id comes from the URL,
-#    NEVER the body). Use the id printed by the seed script.
-ORG=<agua-azul-org-id>
-curl -s -X POST "localhost:8000/orgs/$ORG/households" \
+curl -s localhost:8000/v1/me -H "authorization: Bearer $TOKEN"
+curl -s -X POST localhost:8000/v1/households \
   -H "authorization: Bearer $TOKEN" -H 'content-type: application/json' \
   -H 'Idempotency-Key: demo-1' \
   -d '{"reference_code":"DEMO-1","estimated_member_count":4,
-       "contacts":[{"preferred_name":"Carmen","preferred_language":"es"}],
-       "observations":[{"service_type":"piped_water","status":"unavailable"}],
-       "needs":[{"category":"water_delivery","requested_quantity":40,"unit":"liters","urgency":"urgent"}]}'
-
-# 4. List org cases
-curl -s "localhost:8000/orgs/$ORG/cases" -H "authorization: Bearer $TOKEN"
+       "needs":[{"category":"water_delivery","requested_quantity":40,"unit":"liters"}]}'
+curl -s localhost:8000/v1/cases -H "authorization: Bearer $TOKEN"
 ```
+
+Locally, the seeded demo users can also use the real cookie flow: outside
+production, the first `POST /v1/auth/password/login` with the seed password
+adopts it as an Argon2id credential, then TOTP enrollment is required as usual.
+
+With more than one membership, a dev bearer caller can pick the org with
+`X-Org-Id` (checked against its memberships).
+
+Password and TOTP credentials, sessions and OIDC flows are kept behind the
+`AuthStore` interface (`app/auth/store.py`). Until the database tables exist it
+is **in memory**: sessions are lost on restart and not shared between
+instances, so run a single instance.
 
 ### Tests
 
@@ -102,7 +137,9 @@ curl -s "localhost:8000/orgs/$ORG/cases" -H "authorization: Bearer $TOKEN"
 .venv/bin/python -m pytest
 ```
 
-Covered: auth, assisted intake (household + contacts + assessment + case + needs
+Covered: password + TOTP and Google OIDC sign-in, session timeouts, CSRF/CORS,
+revocation, `/v1` and legacy routes, the error envelope, rate limits, a log scan
+for seeded personal data, assisted intake (household + contacts + assessment + case + needs
 in one transaction), household/case retrieval, **cross-organization isolation**
 (org A cannot read or write org B's data), Idempotency-Key replay, and the
 WhatsApp webhook (verification handshake, signature check, event persistence,
@@ -197,22 +234,34 @@ URL, so rotate `verify-token` if that log is ever exposed.
 
 ## Architecture notes
 
-- **One APIRouter per endpoint group.** Implemented: `auth`, `me`, `households`,
-  `cases`, `webhooks`. Stubbed empty for later: `water`, `charging`, `reviews`.
-- **Tenant isolation.** Org-scoped routes live under `/orgs/{org_id}/...`.
-  `get_org_context` (`app/deps.py`) verifies the caller has an active membership
-  in that org and builds a `RequestContext(org_id, actor_id, membership_id, role)`.
-  The org is taken from the URL + membership, **never** from the request body.
-  A non-member or cross-org row returns **404** (not 403) so existence is not
-  leaked.
+- **One APIRouter per endpoint group.** Implemented: `auth`, `me`, `admin`,
+  `households`, `cases`, `webhooks`, `health`. The fulfillment stubs (`water`,
+  `charging`) are removed; `reviews` is an unmounted placeholder.
+- **Tenant isolation.** `/v1` routes use `get_v1_context` (`app/deps.py`): the
+  org is the session's active organization, re-checked against an active
+  membership on every request. Legacy `/orgs/{org_id}/...` routes use
+  `get_org_context`, which checks the path org against memberships. Either way
+  the result is a `RequestContext(org_id, actor_id, membership_id, role)`, the
+  org never comes from the request body, and a non-member or cross-org row
+  returns **404** (not 403) so existence is not leaked.
 - **Domain layer** (`app/domain/`) functions take `(ctx, db, ...)`, scope every
   query to `ctx.org_id`, and contain no HTTP concerns. Intake runs in one
   transaction.
-- **Structured errors** (`app/errors.py`): `ValidationError`, `PermissionDenied`,
-  `NotFound`, `Conflict`, `CapacityExceeded` → one JSON shape
-  `{"error": {"code", "message", "details"}}`.
-- **Idempotency** (`app/idempotency.py`): `Idempotency-Key` header stores the
-  first result per `(org, endpoint, key)` in `idempotency_key`; retries replay it.
+- **Structured errors** (`app/errors.py`, CON-040): every error is
+  `{"code", "message_key", "details", "request_id"}`. Codes: `validation_failed`,
+  `unauthenticated`, `forbidden`, `not_found`, `conflict`, `idempotency_conflict`,
+  `rate_limited`, `internal_error`, and the other CON-040 codes. Validation
+  details keep only `loc` and `type`, never the submitted input.
+- **Request IDs and logs**: every response carries `X-Request-ID` (a
+  well-formed client value is reused). Logs are JSON with route templates, never
+  bodies, query strings or exception messages, behind a redaction filter
+  (`app/auth/logs.py`). Sensitive responses are `Cache-Control: no-store`.
+- **Idempotency** (`app/idempotency.py`): `Idempotency-Key` stores the first
+  result per `(org, endpoint, key)` with a digest of the request body and the
+  actor. A retry with the same body replays it; a different body or actor gets
+  409 `idempotency_conflict`.
+- **Rate limits** (`app/auth/ratelimit.py`): per client IP on every sign-in step
+  and on the webhook, in process.
 - **Webhooks** (`app/routers/webhooks.py`): `GET /webhooks/whatsapp` does the Meta
   handshake; `POST` verifies `X-Hub-Signature-256`, persists the raw payload to
   `inbound_event`, and returns 200 immediately. No LLM calls or outbound sends in
@@ -225,6 +274,24 @@ See `.env.example`. `DATABASE_URL`, `JWT_SECRET`, and the WhatsApp secrets
 (`WHATSAPP_TOKEN`, `APP_SECRET`, `VERIFY_TOKEN`, `PHONE_NUMBER_ID`) come from the
 environment / `.env`. Never commit `.env`.
 
+Staff auth settings (all optional; defaults in `app/config.py`):
+
+| Variable | Default | Notes |
+|----------|---------|-------|
+| `WEB_ORIGIN` | empty | Web app origin, e.g. `https://app.example.org`. Enables credentialed CORS and the `Origin` check; OIDC redirects go here. Must be https in production. |
+| `SESSION_COOKIE_SECURE` | `true` | Set `false` only for plain-http local dev. Production refuses `false`. |
+| `SESSION_COOKIE_DOMAIN` | empty | Leave empty to get a host-only `__Host-` cookie. |
+| `OIDC_GOOGLE_CLIENT_ID`, `OIDC_GOOGLE_CLIENT_SECRET`, `OIDC_GOOGLE_REDIRECT_URI` | empty | All three enable Google sign-in. The redirect URI is `https://<api host>/v1/auth/oidc/google/callback`. |
+| `SESSION_IDLE_TIMEOUT_MINUTES`, `SESSION_ABSOLUTE_TIMEOUT_HOURS` | 30, 12 | SEC-05 |
+| `PASSWORD_MAX_FAILURES`, `PASSWORD_LOCKOUT_MINUTES` | 5, 15 | |
+| `RATE_LIMIT_SIGNIN_PER_MINUTE`, `RATE_LIMIT_WEBHOOK_PER_MINUTE` | 10, 1200 | Per client IP |
+| `FORWARDED_FOR_TRUSTED_HOPS` | 0 | Set `1` behind Cloud Run so limits key on the client IP |
+| `JSON_LOGS`, `LOG_LEVEL` | `true`, `INFO` | |
+
+The web app and the API must share a registrable domain (for example
+`app.example.org` and `api.example.org`): `SameSite=Lax` cookies are not sent on
+cross-site requests.
+
 ## Layout
 
 ```
@@ -232,8 +299,10 @@ app/
   main.py          FastAPI app, router mounting, error handlers
   config.py        Settings from env/.env
   db.py            Engine, session, get_db dependency
-  security.py      JWT + password hashing
-  deps.py          get_current_user, get_org_context
+  security.py      Development-only JWT bearer login (+ legacy bcrypt hash)
+  deps.py          get_principal, get_v1_context, get_org_context, require_role
+  auth/            Sessions, password + TOTP, Google OIDC, auth store,
+                   rate limits, request-ID middleware, redacted logging
   context.py       RequestContext(org_id, actor_id, ...)
   errors.py        Structured errors + handlers
   idempotency.py   Idempotency-Key storage/replay
