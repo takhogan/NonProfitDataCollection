@@ -1,0 +1,33 @@
+# Local PostgreSQL 15 + PostGIS for development and integration tests (DB-092).
+#
+#   docker compose up -d db
+#   cp .env.postgres.example .env      # or export the variables below
+#   .venv/bin/alembic upgrade head
+#
+# The `postgres` superuser here plays the *migration* role (table owner). The
+# app's runtime roles (csl_runtime, csl_worker, csl_provider, csl_analyst,
+# csl_public) are NOLOGIN group roles created by the migration; the tenant
+# transaction helper in app/db.py switches to them with SET LOCAL ROLE so RLS
+# applies even on this superuser connection. Synthetic data only.
+services:
+  db:
+    image: postgis/postgis:15-3.4
+    # The official image is amd64; Docker Desktop runs it under emulation on
+    # Apple Silicon. Override with POSTGIS_PLATFORM if you have a native build.
+    platform: ${POSTGIS_PLATFORM:-linux/amd64}
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres-local-only}
+      POSTGRES_DB: csl_dev
+    ports:
+      - "${POSTGRES_PORT:-55432}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d csl_dev"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+volumes:
+  pgdata:
