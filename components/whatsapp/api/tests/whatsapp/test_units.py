@@ -193,3 +193,58 @@ def test_catalog_respects_whatsapp_limits():
             assert all(len(r["title"]) <= A.ROW_TITLE for r in m["rows"])
             assert all(len(r.get("description") or "") <= A.ROW_DESC for r in m["rows"])
     assert json.dumps(C.notice("Metron Reporter", "Org"))
+
+
+def test_kms_envelope_unwrap_and_org_scoped_hmac(monkeypatch):
+    import base64 as b64
+
+    from app import crypto
+    from app.config import get_settings
+
+    root = bytes(range(32))
+    calls = []
+
+    def fake_get(url, headers=None, timeout=None):
+        assert headers == {"Metadata-Flavor": "Google"}
+        return httpx.Response(200, json={"access_token": "tok"}, request=httpx.Request("GET", url))
+
+    def fake_post(url, json=None, headers=None, timeout=None):
+        calls.append(url)
+        assert url.endswith("/cryptoKeys/field-data:decrypt")
+        assert headers["Authorization"] == "Bearer tok"
+        assert b64.b64decode(json["ciphertext"]) == b"wrapped-root"
+        return httpx.Response(200, json={"plaintext": b64.b64encode(root).decode()},
+                              request=httpx.Request("POST", url))
+
+    s = get_settings()
+    monkeypatch.setattr(s, "kms_key_name",
+                        "projects/p/locations/us-east4/keyRings/metron/cryptoKeys/field-data")
+    monkeypatch.setattr(s, "wrapped_data_key", b64.b64encode(b"wrapped-root").decode())
+    monkeypatch.setattr(crypto.httpx, "get", fake_get)
+    monkeypatch.setattr(crypto.httpx, "post", fake_post)
+    crypto.reset_keys()
+    try:
+        blob = crypto.encrypt("+58 412 5551234")
+        assert crypto.decrypt(blob) == "+58 412 5551234"
+        assert b"5551234" not in blob
+        a = crypto.lookup_hmac("org-a", "whatsapp", "58412")
+        assert a == crypto.lookup_hmac("org-a", "whatsapp", "58412")
+        assert a != crypto.lookup_hmac("org-b", "whatsapp", "58412")  # per-org keys
+        assert len(calls) == 1  # unwrapped once, then cached in memory
+    finally:
+        crypto.reset_keys()
+
+
+def test_production_without_kms_refuses(monkeypatch):
+    from app import crypto
+    from app.config import get_settings
+
+    s = get_settings()
+    monkeypatch.setattr(s, "app_env", "production")
+    monkeypatch.setattr(s, "kms_key_name", "")
+    crypto.reset_keys()
+    try:
+        with pytest.raises(crypto.KeyUnavailable):
+            crypto.encrypt("x")
+    finally:
+        crypto.reset_keys()

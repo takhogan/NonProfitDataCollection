@@ -108,7 +108,8 @@ falls back to asking the question again.
 ## Setup
 
 - Link the number: `python -m scripts.link_channel --phone-number-id <id> --org "<name>"`.
-- Production needs `DATA_ENCRYPTION_KEY` and `LOOKUP_HMAC_KEY` (see DEPLOY.md).
+- Production needs `KMS_KEY_NAME` and `WRAPPED_DATA_KEY` (Cloud KMS envelope encryption; `deploy/gcloud-deploy.sh kms`).
+- Demo: `WHATSAPP_FALLBACK_ORG_NAME` routes unlinked numbers to one organization.
 - Tests: `tests/whatsapp/` (end-to-end on PostgreSQL with RLS, plus unit tests).
 
 ## Not done yet

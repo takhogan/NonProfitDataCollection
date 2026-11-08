@@ -352,3 +352,17 @@ def test_surge_mode_sends_one_holding_reply_first(bot, monkeypatch):
     assert "Metron Reporter" in bodies(out[1:])
     holding = [m for m in b.mine() if "Hay muchos" in (m["message"].get("body") or "")]
     assert len(holding) == 1
+
+
+def test_fallback_org_answers_unlinked_number(bot, monkeypatch):
+    from app.config import get_settings
+
+    monkeypatch.setattr(get_settings(), "whatsapp_fallback_org_name",
+                        "Agua Azul (demo, standard)")
+    b = bot("standard")
+    b.pnid = "PNID-LIVE-UNLINKED"
+    out = b.say("Hola")
+    assert "Agua Azul (demo, standard)" in bodies(out)
+    assert out[0]["phone_number_id"] == "PNID-LIVE-UNLINKED"
+    assert b.owner("SELECT count(*) AS n FROM channel_account WHERE phone_number_id = :p",
+                   p="PNID-LIVE-UNLINKED")[0]["n"] == 0  # nothing written

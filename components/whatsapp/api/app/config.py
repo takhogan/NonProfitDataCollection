@@ -61,13 +61,20 @@ class Settings(BaseSettings):
     worker_batch_size: int = 20
 
     # --- WhatsApp conversation engine (OPW-010..035) ---
-    # App-level encryption (DB-050) and lookup HMAC (DB-051) keys: base64, 32
-    # bytes each. Required in production; local dev derives non-secret keys.
-    data_encryption_key: str = ""
-    lookup_hmac_key: str = ""
+    # Field encryption (DB-050) and org-scoped lookup HMACs (DB-051) use
+    # envelope encryption (app/crypto.py): a Cloud KMS key, e.g.
+    # projects/<p>/locations/us-east4/keyRings/metron/cryptoKeys/field-data,
+    # and the root key wrapped by it (base64; secret ``wrapped-data-key``).
+    # Required in production; local dev derives a non-secret root key.
+    kms_key_name: str = ""
+    wrapped_data_key: str = ""
     # A conversation resumes within this many hours (OPW-017); after that the
     # next message starts a new report.
     conversation_resume_hours: int = 48
+    # Demo/pilot fallback: route a phone_number_id that has no channel_account
+    # row to the organization with this exact name. Empty (default) means
+    # unlinked numbers are ignored. Prefer scripts/link_channel.py for real use.
+    whatsapp_fallback_org_name: str = ""
     # Free-form replies only inside the 24-hour customer-service window (OPW-031).
     whatsapp_session_window_hours: int = 24
     # Approved Meta templates, JSON: {"report_received": {"name": "...",
@@ -167,8 +174,8 @@ class Settings(BaseSettings):
         if not self.seed_demo_password:
             missing.append("SEED_DEMO_PASSWORD")
 
-        # Conversation data is encrypted at the application layer (DB-050/051).
-        for field in ("data_encryption_key", "lookup_hmac_key"):
+        # Conversation data is encrypted with a KMS-managed key (DB-050/051).
+        for field in ("kms_key_name", "wrapped_data_key"):
             if not getattr(self, field):
                 missing.append(field.upper())
 
